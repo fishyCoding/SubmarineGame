@@ -1,96 +1,78 @@
 import java.util.List;
 
 /**
- * Main class - Submarine Game Editor using StdDraw
- * 
+ * Main — Submarine Game Editor / Testbed
+ *
  * Controls:
- * - Click: Add vertices for rock shape (Shift+Click to finish)
- * - Arrow Keys: Scroll/pan camera
- * - Spacebar: Toggle layer (foreground/background)
- * - D: Delete sprite under cursor
- * - C: Clear all sprites
- * - U: Undo last vertex
- * - S: Save sprites (auto-saved on finalization)
- * - ESC: Exit
+ *   Click              Add vertex to current rock
+ *   Shift+Click        Finish / close current rock
+ *   Arrow Keys         Pan camera
+ *   Space              Toggle depth layer (background / foreground)
+ *   U                  Undo last vertex
+ *   D                  Delete sprite under cursor
+ *   C                  Clear all sprites
+ *   S                  Save
+ *   ESC                Finish current rock + exit
  */
 public class Main {
-    private static final int WIDTH = 1600;
-    private static final int HEIGHT = 1000;
-    private static final float METERS_PER_PIXEL = 1.0f;
-    private static final float SURFACE_LEVEL = 0f;
-    private static final float SEAFLOOR_TOP_DEPTH = -1820f;
-    private static final float SEAFLOOR_BASE_DEPTH = -2400f;
-    private static final String DATA_FILE = "sprites.txt";
-    
-    private static GameEngine engine;
-    private static Rock currentRock;
-    private static int currentDepth = 0; // 0 = background (far), 1 = foreground (close)
-    private static boolean keyPressed = false;
 
-    private static float[] bottomRockWorldX;
-    private static float[] bottomRockWorldY;
-    private static int bottomRockPoints;
+    // ── Canvas / world constants ───────────────────────────────────────────────
+    private static final int   WIDTH             = 1600;
+    private static final int   HEIGHT            = 1000;
+    private static final float METERS_PER_PIXEL  = 1.0f;
+    private static final float SURFACE_LEVEL     = 0f;
+    private static final float SEAFLOOR_TOP      = -1820f;
+    private static final float SEAFLOOR_BASE     = -2400f;
+    private static final String DATA_FILE        = "sprites.txt";
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    private static GameEngine      engine;
+    private static BottomRockLayer bottomLayer;
+    private static Rock            currentRock;
+    private static int             currentDepth = 0;   // 0 = bg, 1 = fg
+    private static boolean         mouseWasDown = false;
+
+    // ── Entry point ───────────────────────────────────────────────────────────
 
     public static void main(String[] args) {
-        // Initialize StdDraw window
         StdDraw.setCanvasSize(WIDTH, HEIGHT);
         StdDraw.setXscale(0, WIDTH);
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
-        
-        // Initialize game engine
-        engine = new GameEngine(DATA_FILE);
-        engine.panCamera(0, -200); // show sky above surface and water below
-        generateBottomRockLayer(-WIDTH, WIDTH * 4, 100);
-        
-        System.out.println("=== Submarine Game Editor ===");
-        System.out.println("Controls:");
-        System.out.println("  Click: Add vertex to rock shape");
-        System.out.println("  Shift+Click: Finish rock shape");
-        System.out.println("  Arrow Keys: Scroll camera");
-        System.out.println("  Spacebar: Toggle layer (background/foreground)");
-        System.out.println("  D: Delete sprite at cursor");
-        System.out.println("  C: Clear all sprites");
-        System.out.println("  U: Undo last vertex");
-        System.out.println("  S: Save");
-        System.out.println("  ESC: Exit");
-        
-        // Main loop
+
+        engine      = new GameEngine(DATA_FILE);
+        engine.panCamera(0, -200);
+        bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, 120, SEAFLOOR_TOP, SEAFLOOR_BASE);
+
+        printHelp();
+
         while (true) {
             handleInput();
-            update();
             render();
+            StdDraw.show();
+            StdDraw.pause(16); // ~60 fps
         }
     }
 
-    private static void handleInput() {
-        // Camera panning with arrow keys
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT)) {
-            engine.panCamera(-10, 0);
-        }
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT)) {
-            engine.panCamera(10, 0);
-        }
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_UP)) {
-            engine.panCamera(0, 10);
-        }
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN)) {
-            engine.panCamera(0, -10);
-        }
+    // ── Input ──────────────────────────────────────────────────────────────────
 
-        // Toggle layer with spacebar
+    private static void handleInput() {
+        // Camera pan
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT))  engine.panCamera(-10,  0);
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT)) engine.panCamera( 10,  0);
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_UP))    engine.panCamera(  0, 10);
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN))  engine.panCamera(  0,-10);
+
+        // Toggle layer
         if (StdDraw.isKeyPressed(' ')) {
             currentDepth = 1 - currentDepth;
-            System.out.println("Layer: " + (currentDepth == 0 ? "Background (Far)" : "Foreground (Close)"));
+            System.out.println("Layer: " + (currentDepth == 0 ? "Background" : "Foreground"));
             StdDraw.pause(200);
-            keyPressed = false;
         }
 
-        // Delete sprite
+        // Delete under cursor
         if (StdDraw.isKeyPressed('D') || StdDraw.isKeyPressed('d')) {
-            float worldX = engine.screenToWorldX(StdDraw.mouseX());
-            float worldY = engine.screenToWorldY(StdDraw.mouseY());
-            engine.deleteSprite(worldX, worldY);
+            engine.deleteSprite(worldMouseX(), worldMouseY());
             StdDraw.pause(200);
         }
 
@@ -105,7 +87,7 @@ public class Main {
         if (StdDraw.isKeyPressed('U') || StdDraw.isKeyPressed('u')) {
             if (currentRock != null) {
                 currentRock.removeLastVertex();
-                System.out.println("Undo: " + currentRock.getVertexCount() + " vertices");
+                System.out.println("Undo — " + currentRock.getVertexCount() + " vertices");
             }
             StdDraw.pause(200);
         }
@@ -124,284 +106,215 @@ public class Main {
                 currentRock = null;
             }
             engine.saveSprites();
-            System.out.println("Exiting...");
+            System.out.println("Goodbye.");
             System.exit(0);
         }
 
-        // Mouse interaction for polygon creation
-        if (StdDraw.isMousePressed()) {
-            float worldX = engine.screenToWorldX(StdDraw.mouseX());
-            float worldY = engine.screenToWorldY(StdDraw.mouseY());
-            boolean shiftPressed = (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_SHIFT));
+        // Mouse: add / finish vertex  (edge-triggered, not level-triggered)
+        boolean mouseDown = StdDraw.isMousePressed();
+        if (mouseDown && !mouseWasDown) {
+            boolean shift = StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_SHIFT);
+            float wx = worldMouseX(), wy = worldMouseY();
 
-            if (!keyPressed) {
-                if (currentRock == null) {
-                    // Start new rock
-                    currentRock = engine.createRock(worldX, worldY, currentDepth);
-                    System.out.println("Started new rock at (" + worldX + ", " + worldY + ")");
-                } else if (shiftPressed) {
-                    // Finish rock
-                    currentRock.closePath();
-                    engine.addRock(currentRock);
-                    System.out.println("Finished rock with " + currentRock.getVertexCount() + " vertices");
-                    currentRock = null;
-                } else {
-                    // Add vertex
-                    currentRock.addVertex(worldX, worldY);
-                    System.out.println("Added vertex: " + currentRock.getVertexCount() + " total");
-                }
-                keyPressed = true;
-                StdDraw.pause(100);
+            if (currentRock == null) {
+                currentRock = engine.createRock(wx, wy, currentDepth);
+                System.out.printf("Started rock at (%.0f, %.0f)%n", wx, wy);
+            } else if (shift) {
+                currentRock.closePath();
+                engine.addRock(currentRock);
+                System.out.println("Finished rock — " + currentRock.getVertexCount() + " vertices");
+                currentRock = null;
+            } else {
+                currentRock.addVertex(wx, wy);
+                System.out.println("Vertex added — total: " + currentRock.getVertexCount());
             }
-        } else {
-            keyPressed = false;
         }
+        mouseWasDown = mouseDown;
     }
 
-    private static void update() {
-        // Update logic (can add animations, physics, etc. here)
-    }
+    // ── Rendering ──────────────────────────────────────────────────────────────
 
     private static void render() {
-        // Draw water gradient background
         drawWaterGradient();
-        drawBottomRockLayer();
 
-        // Draw all sprites (sorted by depth)
-        // Background layer first (depth 0)
-        for (Sprite sprite : engine.getSprites()) {
-            if (sprite instanceof Polygon) {
-                Polygon poly = (Polygon) sprite;
-                if (poly.getDepth() == 0) {
-                    Polygon.drawPolygon(poly);
-                }
-            }
-        }
-        
-        // Foreground layer (depth 1)
-        for (Sprite sprite : engine.getSprites()) {
-            if (sprite instanceof Polygon) {
-                Polygon poly = (Polygon) sprite;
-                if (poly.getDepth() == 1) {
-                    Polygon.drawPolygon(poly);
-                }
-            }
+        // Bottom rock layer (draws itself)
+        bottomLayer.draw(engine);
+
+        // Background rock sprites (depth 0)
+        for (Sprite s : engine.getSprites()) {
+            if (s instanceof Polygon && ((Polygon) s).getDepth() == 0)
+                s.draw(engine);
         }
 
-        // Draw polygon being created
-        if (currentRock != null) {
-            drawPolygonPreview(currentRock);
+        // Foreground rock sprites (depth 1)
+        for (Sprite s : engine.getSprites()) {
+            if (s instanceof Polygon && ((Polygon) s).getDepth() == 1)
+                s.draw(engine);
         }
 
-        // Draw UI
+        // All non-polygon sprites (squares, etc.)
+        for (Sprite s : engine.getSprites()) {
+            if (!(s instanceof Polygon))
+                s.draw(engine);
+        }
+
+        // In-progress rock preview
+        if (currentRock != null) drawRockPreview(currentRock);
+
         drawUI();
-
-        StdDraw.show();
-        StdDraw.pause(16); // ~60 FPS
     }
 
-    /**
-     * Draw realistic underwater gradient - darker/bluer at top (deep), lighter at bottom (shallower)
-     */
+    // ── Water gradient ─────────────────────────────────────────────────────────
+
     private static void drawWaterGradient() {
-        int strips = 150; // More strips for smoother gradient over larger area
+        int    strips       = 160;
         double surfaceScreenY = engine.worldToScreenY(SURFACE_LEVEL);
 
         for (int i = 0; i < strips; i++) {
-            double screenY1 = i * (HEIGHT / (double) strips);
-            double screenY2 = (i + 1) * (HEIGHT / (double) strips);
-            double worldY1 = screenY1 + engine.getCameraY();
-            double worldY2 = screenY2 + engine.getCameraY();
+            double sy1 = i       * (HEIGHT / (double) strips);
+            double sy2 = (i + 1) * (HEIGHT / (double) strips);
+            double wy1 = sy1 + engine.getCameraY();
+            double wy2 = sy2 + engine.getCameraY();
 
-            if (screenY1 >= surfaceScreenY) {
-                // Sky above the water surface
-                float t1 = Math.min(1f, Math.max(0f, (float) ((worldY1 - SURFACE_LEVEL) / 500.0)));
-                float t2 = Math.min(1f, Math.max(0f, (float) ((worldY2 - SURFACE_LEVEL) / 500.0)));
-                int r1 = clampColor((int) (200 + 30 * t1));
-                int g1 = clampColor((int) (230 + 15 * t1));
-                int b1 = 255;
-                int r2 = clampColor((int) (200 + 30 * t2));
-                int g2 = clampColor((int) (230 + 15 * t2));
-                int b2 = 255;
-                StdDraw.setPenColor((r1 + r2) / 2, (g1 + g2) / 2, (b1 + b2) / 2);
-                StdDraw.filledRectangle(WIDTH / 2.0, (screenY1 + screenY2) / 2.0, WIDTH / 2.0, (screenY2 - screenY1) / 2.0);
-            } else if (screenY2 <= surfaceScreenY) {
-                // Water below the surface
-                float depth1 = Math.max(0f, (float) (SURFACE_LEVEL - worldY1));
-                float depth2 = Math.max(0f, (float) (SURFACE_LEVEL - worldY2));
-                float t1 = Math.min(1f, depth1 / 1800f);
-                float t2 = Math.min(1f, depth2 / 1800f);
-                int r1 = clampColor((int) (45 - 30 * t1));
-                int g1 = clampColor((int) (65 - 45 * t1));
-                int b1 = clampColor((int) (90 - 55 * t1));
-                int r2 = clampColor((int) (45 - 30 * t2));
-                int g2 = clampColor((int) (65 - 45 * t2));
-                int b2 = clampColor((int) (90 - 55 * t2));
-                StdDraw.setPenColor((r1 + r2) / 2, (g1 + g2) / 2, (b1 + b2) / 2);
-                StdDraw.filledRectangle(WIDTH / 2.0, (screenY1 + screenY2) / 2.0, WIDTH / 2.0, (screenY2 - screenY1) / 2.0);
+            int r, g, b;
+
+            if (sy1 >= surfaceScreenY) {
+                // Sky
+                float t = clampF((float) ((wy1 - SURFACE_LEVEL) / 500.0));
+                r = clampC((int) (200 + 30 * t));
+                g = clampC((int) (228 + 15 * t));
+                b = 255;
+            } else if (sy2 <= surfaceScreenY) {
+                // Water — deep teal darkening toward black
+                float d1 = Math.max(0f, (float) (SURFACE_LEVEL - wy1));
+                float d2 = Math.max(0f, (float) (SURFACE_LEVEL - wy2));
+                float t  = clampF(((d1 + d2) / 2f) / 1800f);
+                r = clampC((int) (42  - 28 * t));
+                g = clampC((int) (68  - 45 * t));
+                b = clampC((int) (102 - 60 * t));
             } else {
-                // Split strip at surface
-                double surfaceY = surfaceScreenY;
-                // Top part = sky
-                float tSky1 = Math.min(1f, Math.max(0f, (float) ((worldY2 - SURFACE_LEVEL) / 500.0)));
-                int rSky = clampColor((int) (200 + 30 * tSky1));
-                int gSky = clampColor((int) (230 + 15 * tSky1));
-                StdDraw.setPenColor(rSky, gSky, 255);
-                StdDraw.filledRectangle(WIDTH / 2.0, (surfaceY + screenY2) / 2.0, WIDTH / 2.0, (screenY2 - surfaceY) / 2.0);
-                // Bottom part = water
-                float depthWater = Math.max(0f, (float) (SURFACE_LEVEL - worldY1));
-                float tWater = Math.min(1f, depthWater / 1800f);
-                int rWater = clampColor((int) (45 - 30 * tWater));
-                int gWater = clampColor((int) (65 - 45 * tWater));
-                int bWater = clampColor((int) (90 - 55 * tWater));
-                StdDraw.setPenColor(rWater, gWater, bWater);
-                StdDraw.filledRectangle(WIDTH / 2.0, (screenY1 + surfaceY) / 2.0, WIDTH / 2.0, (surfaceY - screenY1) / 2.0);
+                // Split strip — draw sky top, water bottom
+                double surf = surfaceScreenY;
+                StdDraw.setPenColor(210, 235, 255);
+                StdDraw.filledRectangle(WIDTH / 2.0, (surf + sy2) / 2.0,
+                                        WIDTH / 2.0, (sy2 - surf) / 2.0);
+                float d = Math.max(0f, (float) (SURFACE_LEVEL - wy1));
+                float t = clampF(d / 1800f);
+                r = clampC((int) (42 - 28 * t));
+                g = clampC((int) (68 - 45 * t));
+                b = clampC((int) (102 - 60 * t));
+                StdDraw.setPenColor(r, g, b);
+                StdDraw.filledRectangle(WIDTH / 2.0, (sy1 + surf) / 2.0,
+                                        WIDTH / 2.0, (surf - sy1) / 2.0);
+                continue;
             }
+            StdDraw.setPenColor(r, g, b);
+            StdDraw.filledRectangle(WIDTH / 2.0, (sy1 + sy2) / 2.0,
+                                    WIDTH / 2.0, (sy2 - sy1) / 2.0);
+        }
+
+        // Surface line
+        if (surfaceScreenY > 0 && surfaceScreenY < HEIGHT) {
+            StdDraw.setPenColor(150, 210, 255);
+            StdDraw.setPenRadius(0.003);
+            StdDraw.line(0, surfaceScreenY, WIDTH, surfaceScreenY);
+            StdDraw.setPenRadius(0.002);
         }
     }
 
-    private static int clampColor(int value) {
-        return Math.max(0, Math.min(255, value));
-    }
+    // ── Rock preview (in-progress polygon) ────────────────────────────────────
 
-    private static void drawBottomRockLayer() {
-        if (bottomRockPoints == 0 || bottomRockWorldX == null || bottomRockWorldY == null) return;
+    private static void drawRockPreview(Polygon poly) {
+        List<Float> verts = poly.getVertices();
+        int vc = verts.size() / 2;
+        if (vc == 0) return;
 
-        int totalPoints = bottomRockPoints * 2;
-        double[] xs = new double[totalPoints];
-        double[] ys = new double[totalPoints];
-
-        for (int i = 0; i < bottomRockPoints; i++) {
-            xs[i] = engine.worldToScreenX(bottomRockWorldX[i]);
-            ys[i] = engine.worldToScreenY(bottomRockWorldY[i]);
+        // Vertex dots
+        StdDraw.setPenColor(255, 210, 80);
+        StdDraw.setPenRadius(0.012);
+        for (int i = 0; i < vc; i++) {
+            StdDraw.point(engine.worldToScreenX(verts.get(i * 2)),
+                          engine.worldToScreenY(verts.get(i * 2 + 1)));
         }
 
-        for (int i = 0; i < bottomRockPoints; i++) {
-            int j = bottomRockPoints + i;
-            xs[j] = engine.worldToScreenX(bottomRockWorldX[bottomRockPoints - 1 - i]);
-            ys[j] = engine.worldToScreenY(SEAFLOOR_BASE_DEPTH);
-        }
-
-        StdDraw.setPenColor(90, 90, 100);
-        StdDraw.filledPolygon(xs, ys);
-        StdDraw.setPenColor(120, 120, 130);
+        // Edge lines
+        StdDraw.setPenColor(180, 255, 120);
         StdDraw.setPenRadius(0.003);
-        for (int i = 0; i < bottomRockPoints - 1; i++) {
-            StdDraw.line(xs[i], ys[i], xs[i + 1], ys[i + 1]);
+        for (int i = 0; i < vc - 1; i++) {
+            StdDraw.line(engine.worldToScreenX(verts.get(i * 2)),
+                         engine.worldToScreenY(verts.get(i * 2 + 1)),
+                         engine.worldToScreenX(verts.get((i + 1) * 2)),
+                         engine.worldToScreenY(verts.get((i + 1) * 2 + 1)));
         }
+
+        // Preview line to mouse
+        StdDraw.setPenColor(120, 180, 255);
+        StdDraw.setPenRadius(0.002);
+        StdDraw.line(engine.worldToScreenX(verts.get((vc - 1) * 2)),
+                     engine.worldToScreenY(verts.get((vc - 1) * 2 + 1)),
+                     StdDraw.mouseX(), StdDraw.mouseY());
+
+        // Hint
+        StdDraw.setPenColor(255, 255, 200);
+        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
+        StdDraw.textLeft(10, 55, "Shift+Click to close shape");
         StdDraw.setPenRadius(0.002);
     }
 
-    private static void generateBottomRockLayer(float worldStart, float worldEnd, int points) {
-        bottomRockPoints = Math.max(2, points);
-        bottomRockWorldX = new float[bottomRockPoints];
-        bottomRockWorldY = new float[bottomRockPoints];
-        float step = (worldEnd - worldStart) / (bottomRockPoints - 1);
-
-        for (int i = 0; i < bottomRockPoints; i++) {
-            float worldX = worldStart + i * step;
-            double variance = Math.sin(worldX * 0.005) * 16 + Math.cos(worldX * 0.009) * 12;
-            float worldY = SEAFLOOR_TOP_DEPTH + (float) variance;
-            float minDepth = SEAFLOOR_TOP_DEPTH - 18f;
-            float maxDepth = SEAFLOOR_TOP_DEPTH + 18f;
-            bottomRockWorldX[i] = worldX;
-            bottomRockWorldY[i] = Math.max(minDepth, Math.min(maxDepth, worldY));
-        }
-    }
-
-    /**
-     * Draw a polygon sprite with layer-based coloring for water effect
-     */
-
-
-
-    private static void drawRockTexture(double[] xs, double[] ys, int baseR, int baseG, int baseB) {
-        StdDraw.setPenColor(Math.max(0, baseR - 35), Math.max(0, baseG - 35), Math.max(0, baseB - 35));
-        StdDraw.setPenRadius(0.004);
-        int marks = Math.min(6, xs.length - 1);
-        for (int i = 0; i < marks; i++) {
-            int next = (i + 3) % xs.length;
-            double midX = (xs[i] + xs[next]) / 2.0;
-            double midY = (ys[i] + ys[next]) / 2.0;
-            double offsetX = Math.sin(i * 1.9) * 6;
-            double offsetY = Math.cos(i * 2.3) * 3;
-            double radius = 3 + (i % 3);
-            StdDraw.filledCircle(midX + offsetX, midY + offsetY, radius);
-        }
-        StdDraw.setPenRadius(0.002);
-    }
-
-    /**
-     * Draw the polygon being created in real-time
-     */
-
-    private static void drawPolygonPreview(Polygon poly) {
-        List<Float> vertices = poly.getVertices();
-        if (vertices.size() < 2) return;
-
-        int vertexCount = vertices.size() / 2;
-
-        // Draw existing vertices
-        StdDraw.setPenColor(255, 200, 100);
-        StdDraw.setPenRadius(0.01);
-        for (int i = 0; i < vertexCount; i++) {
-            double screenX = engine.worldToScreenX(vertices.get(i * 2));
-            double screenY = engine.worldToScreenY(vertices.get(i * 2 + 1));
-            StdDraw.point(screenX, screenY);
-        }
-
-        // Draw lines connecting vertices
-        StdDraw.setPenColor(200, 255, 100);
-        StdDraw.setPenRadius(0.003);
-        for (int i = 0; i < vertexCount - 1; i++) {
-            double x1 = engine.worldToScreenX(vertices.get(i * 2));
-            double y1 = engine.worldToScreenY(vertices.get(i * 2 + 1));
-            double x2 = engine.worldToScreenX(vertices.get((i + 1) * 2));
-            double y2 = engine.worldToScreenY(vertices.get((i + 1) * 2 + 1));
-            StdDraw.line(x1, y1, x2, y2);
-        }
-
-        // Draw line from last vertex to mouse (preview)
-        double lastX = engine.worldToScreenX(vertices.get((vertexCount - 1) * 2));
-        double lastY = engine.worldToScreenY(vertices.get((vertexCount - 1) * 2 + 1));
-        StdDraw.setPenColor(150, 200, 255);
-        StdDraw.line(lastX, lastY, StdDraw.mouseX(), StdDraw.mouseY());
-
-        // Draw instruction text
-        StdDraw.setPenColor(255, 255, 255);
-        StdDraw.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 12));
-        StdDraw.textLeft(10, 60, "Shift+Click to finish rock shape");
-    }
+    // ── HUD ───────────────────────────────────────────────────────────────────
 
     private static void drawUI() {
-        StdDraw.setPenColor(255, 255, 255);
-        StdDraw.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 14));
-        
-        // Mouse position and depth in meters
-        float worldX = engine.screenToWorldX(StdDraw.mouseX());
-        float worldY = engine.screenToWorldY(StdDraw.mouseY());
-        float depthMeters = Math.max(0f, -worldY) * METERS_PER_PIXEL;
-        String posText = String.format("World: (%.0f, %.0f)", worldX, worldY);
-        StdDraw.textLeft(10, HEIGHT - 20, posText);
-        String depthText = String.format("Depth: %.0f m", depthMeters);
-        StdDraw.textLeft(10, HEIGHT - 40, depthText);
+        java.awt.Font mono = new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 13);
+        StdDraw.setFont(mono);
 
-        // Rock count
-        String countText = String.format("Rocks: %d", engine.getSprites().size());
-        StdDraw.textLeft(10, HEIGHT - 60, countText);
+        float wx = worldMouseX(), wy = worldMouseY();
+        float depthM = Math.max(0f, -wy) * METERS_PER_PIXEL;
 
-        // Current layer
-        String layerText = currentDepth == 0 ? "Layer: Background (Far)" : "Layer: Foreground (Close)";
-        StdDraw.textLeft(10, HEIGHT - 60, layerText);
+        StdDraw.setPenColor(0, 0, 0);
+        StdDraw.textLeft(11, HEIGHT - 19, String.format("World: (%.0f, %.0f)", wx, wy));
+        StdDraw.textLeft(11, HEIGHT - 35, String.format("Depth: %.0f m", depthM));
+        StdDraw.textLeft(11, HEIGHT - 51, String.format("Sprites: %d", engine.getSprites().size()));
+        StdDraw.textLeft(11, HEIGHT - 67, "Layer: " + (currentDepth == 0 ? "Background" : "Foreground"));
+        if (currentRock != null)
+            StdDraw.textLeft(11, HEIGHT - 83,
+                    String.format("In progress: %d vertices", currentRock.getVertexCount()));
 
-        // Current rock info
-        if (currentRock != null) {
-            String polyText = String.format("Current Rock: %d vertices", currentRock.getVertexCount());
-            StdDraw.textLeft(10, HEIGHT - 80, polyText);
-        }
+        StdDraw.setPenColor(220, 220, 220);
+        StdDraw.textLeft(10, HEIGHT - 18, String.format("World: (%.0f, %.0f)", wx, wy));
+        StdDraw.textLeft(10, HEIGHT - 34, String.format("Depth: %.0f m", depthM));
+        StdDraw.textLeft(10, HEIGHT - 50, String.format("Sprites: %d", engine.getSprites().size()));
+        StdDraw.textLeft(10, HEIGHT - 66, "Layer: " + (currentDepth == 0 ? "Background" : "Foreground"));
+        if (currentRock != null)
+            StdDraw.textLeft(10, HEIGHT - 82,
+                    String.format("In progress: %d vertices", currentRock.getVertexCount()));
 
-        // Instructions
-        StdDraw.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 12));
-        StdDraw.textLeft(10, 20, "Click: Vertex | Shift+Click: Finish | Arrow Keys: Scroll | Space: Toggle Layer | U: Undo | D: Delete | C: Clear | S: Save | ESC: Exit");
+        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
+        String hint = "Click:Vertex  Shift+Click:Finish  Arrows:Scroll  "
+                    + "Space:Layer  U:Undo  D:Delete  C:Clear  S:Save  ESC:Exit";
+        StdDraw.setPenColor(0, 0, 0);
+        StdDraw.textLeft(11, 15, hint);
+        StdDraw.setPenColor(200, 220, 255);
+        StdDraw.textLeft(10, 16, hint);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static float worldMouseX() { return engine.screenToWorldX(StdDraw.mouseX()); }
+    private static float worldMouseY() { return engine.screenToWorldY(StdDraw.mouseY()); }
+
+    private static int   clampC(int   v) { return Math.max(0, Math.min(255, v)); }
+    private static float clampF(float v) { return Math.max(0f, Math.min(1f, v)); }
+
+    private static void printHelp() {
+        System.out.println("=== Submarine Game Editor ===");
+        System.out.println("  Click           → add vertex");
+        System.out.println("  Shift+Click     → finish / close rock");
+        System.out.println("  Arrow Keys      → scroll camera");
+        System.out.println("  Space           → toggle layer (bg / fg)");
+        System.out.println("  U               → undo last vertex");
+        System.out.println("  D               → delete sprite under cursor");
+        System.out.println("  C               → clear all sprites");
+        System.out.println("  S               → save");
+        System.out.println("  ESC             → save & exit");
     }
 }

@@ -1,78 +1,60 @@
 /**
- * Square class - a rectangular sprite for the game engine.
- * Extends the abstract Sprite class with width and height properties.
- * Used for obstacles, static objects, etc. in the submarine game.
+ * Rock sprite — an underwater polygon with default grey coloring.
+ * Inherits all drawing logic from Polygon.
  */
-public class Square extends Sprite {
-    private float width;
-    private float height;
+public class Rock extends Polygon {
 
-    public Square(float x, float y, float width, float height, int r, int g, int b) {
-        super(x, y, r, g, b);
-        this.width = Math.max(1, width);
-        this.height = Math.max(1, height);
+    public Rock(float startX, float startY, int depth) {
+        super(startX, startY, 170, 170, 170, depth);
     }
 
-    // Getters
-    public float getWidth() { return width; }
-    public float getHeight() { return height; }
-
-    // Setters
-    public void setWidth(float width) { this.width = Math.max(1, width); }
-    public void setHeight(float height) { this.height = Math.max(1, height); }
-    public void setSize(float width, float height) {
-        this.width = Math.max(1, width);
-        this.height = Math.max(1, height);
+    public Rock(float startX, float startY, int r, int g, int b, int depth) {
+        super(startX, startY, r, g, b, depth);
     }
 
-    /**
-     * Check if a point is within this square's bounds
-     */
     @Override
-    public boolean contains(float px, float py) {
-        return px >= x && px <= x + width && py >= y && py <= y + height;
-    }
+    public String getType() { return "ROCK"; }
 
     /**
-     * Serialize square to text format
-     * Format: SQUARE x y width height r g b
+     * Deserialize a rock from a text line.
+     * Format: ROCK depth vertexCount x1 y1 x2 y2 ... r g b
      */
+    public static Rock deserialize(String line) {
+        try {
+            String[] p = line.trim().split("\\s+");
+            if (p.length < 6) return null;
+
+            int depth       = Integer.parseInt(p[1]);
+            int vertexCount = Integer.parseInt(p[2]);
+            if (p.length < 3 + vertexCount * 2 + 3) return null;
+
+            Rock rock = new Rock(Float.parseFloat(p[3]), Float.parseFloat(p[4]), depth);
+            rock.clearVertices();
+
+            int idx = 3;
+            for (int i = 0; i < vertexCount; i++) {
+                rock.addVertex(Float.parseFloat(p[idx++]), Float.parseFloat(p[idx++]));
+            }
+            rock.setColor(Integer.parseInt(p[idx]),
+                          Integer.parseInt(p[idx + 1]),
+                          Integer.parseInt(p[idx + 2]));
+            rock.closePath();
+            return rock;
+        } catch (Exception e) { return null; }
+    }
+
     @Override
     public String serialize() {
-        return String.format("SQUARE %.1f %.1f %.1f %.1f %d %d %d",
-                x, y, width, height, r, g, b);
-    }
-
-    /**
-     * Deserialize square from text line
-     */
-    public static Square deserialize(String line) {
-        try {
-            String[] parts = line.trim().split("\\s+");
-            if (parts.length < 8) return null;
-            
-            float x = Float.parseFloat(parts[1]);
-            float y = Float.parseFloat(parts[2]);
-            float width = Float.parseFloat(parts[3]);
-            float height = Float.parseFloat(parts[4]);
-            int r = Integer.parseInt(parts[5]);
-            int g = Integer.parseInt(parts[6]);
-            int b = Integer.parseInt(parts[7]);
-            
-            return new Square(x, y, width, height, r, g, b);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    @Override
-    public String getType() {
-        return "SQUARE";
+        StringBuilder sb = new StringBuilder();
+        sb.append("ROCK ").append(getDepth()).append(" ").append(getVertexCount());
+        for (float v : getVertices()) sb.append(" ").append(String.format("%.1f", v));
+        sb.append(" ").append(getR()).append(" ").append(getG()).append(" ").append(getB());
+        return sb.toString();
     }
 
     @Override
     public String toString() {
-        return String.format("Square at (%.0f, %.0f) size %.0f x %.0f color RGB(%d,%d,%d)",
-                x, y, width, height, r, g, b);
+        return String.format("Rock(%d vertices, depth=%d, color=RGB(%d,%d,%d))",
+                getVertexCount(), getDepth(), getR(), getG(), getB());
     }
 }
