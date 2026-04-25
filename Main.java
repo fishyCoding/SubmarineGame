@@ -3,6 +3,9 @@ import java.util.List;
 /**
  * Main — Submarine Game Editor / Testbed
  *
+ * Run this to build and inspect the world.
+ * Run {@link Game} to play.
+ *
  * Controls:
  *   Click              Add vertex to current rock
  *   Shift+Click        Finish / close current rock
@@ -16,85 +19,76 @@ import java.util.List;
  */
 public class Main {
 
-    // Base Settings
-    private static final int   WIDTH             = 1600;
-    private static final int   HEIGHT            = 1000;
-    private static final float METERS_PER_PIXEL  = 1.0f;
-    private static final float SURFACE_LEVEL     = 0f;
-    private static final float SEAFLOOR_TOP      = -1820f;
-    private static final float SEAFLOOR_BASE     = -2400f;
+    // ── Settings ───────────────────────────────────────────────────────────────
+    private static final int    WIDTH            = 1600;
+    private static final int    HEIGHT           = 1000;
+    private static final float  METERS_PER_PIXEL = 1.0f;
+    private static final float  SURFACE_LEVEL    = 0f;
+    private static final float  SEAFLOOR_TOP     = -1820f;
+    private static final float  SEAFLOOR_BASE    = -2400f;
     private static final String DATA_FILE        = "sprites.txt";
 
-    // State variables for the game engine (not for runtime)
+    // ── State ──────────────────────────────────────────────────────────────────
     private static GameEngine      engine;
     private static BottomRockLayer bottomLayer;
     private static Rock            currentRock;
     private static int             currentDepth = 0;   // 0 = bg, 1 = fg
     private static boolean         mouseWasDown = false;
 
-    static Water watergradient;
+    static Water    watergradient;
     static EngineUI UI;
 
+    // ── Entry point ────────────────────────────────────────────────────────────
+
     public static void main(String[] args) {
-        
-        //Setting up the canvas
         StdDraw.setCanvasSize(WIDTH, HEIGHT);
         StdDraw.setXscale(0, WIDTH);
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
 
-        //setting up the engine
-        engine = new GameEngine(DATA_FILE);
+        engine      = new GameEngine(DATA_FILE);
         engine.panCamera(0, -200);
         bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, 120, SEAFLOOR_TOP, SEAFLOOR_BASE);
 
-        //setting up sprites and other runtime classes
+        watergradient = new Water(HEIGHT, WIDTH, SURFACE_LEVEL, engine);
+        UI            = new EngineUI(engine, WIDTH, HEIGHT);
 
-        watergradient = new Water(HEIGHT,WIDTH,SURFACE_LEVEL,engine);
-        UI = new EngineUI(engine,WIDTH,HEIGHT);
-
-        //Printing documentation. Imma get rid of this soon
         printHelp();
 
         while (true) {
             handleInput();
             render();
             StdDraw.show();
-            StdDraw.pause(16); //tick rate
+            StdDraw.pause(16);
         }
     }
 
+    // ── Input ──────────────────────────────────────────────────────────────────
 
     private static void handleInput() {
-        // Camera pan
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT))  engine.panCamera(-10,  0);
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT)) engine.panCamera( 10,  0);
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_UP))    engine.panCamera(  0, 10);
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN))  engine.panCamera(  0,-10);
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_O))  engine.setCamera(  0,-10);
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_O))     engine.setCamera(  0,-10);
 
-
-        // Toggle layer
         if (StdDraw.isKeyPressed(' ')) {
             currentDepth = 1 - currentDepth;
             System.out.println("Layer: " + (currentDepth == 0 ? "Background" : "Foreground"));
             StdDraw.pause(200);
         }
 
-        // Delete under cursor
         if (StdDraw.isKeyPressed('D') || StdDraw.isKeyPressed('d')) {
             engine.deleteSprite(worldMouseX(), worldMouseY());
             StdDraw.pause(200);
         }
 
-        // Clear all
         if (StdDraw.isKeyPressed('C') || StdDraw.isKeyPressed('c')) {
             engine.clearAll();
             currentRock = null;
             StdDraw.pause(200);
         }
 
-        // Undo last vertex
         if (StdDraw.isKeyPressed('U') || StdDraw.isKeyPressed('u')) {
             if (currentRock != null) {
                 currentRock.removeLastVertex();
@@ -103,13 +97,11 @@ public class Main {
             StdDraw.pause(200);
         }
 
-        // Save
         if (StdDraw.isKeyPressed('S') || StdDraw.isKeyPressed('s')) {
             engine.saveSprites();
             StdDraw.pause(200);
         }
 
-        // Exit
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
             if (currentRock != null) {
                 currentRock.closePath();
@@ -142,49 +134,43 @@ public class Main {
         mouseWasDown = mouseDown;
     }
 
+    // ── Render ─────────────────────────────────────────────────────────────────
 
     private static void render() {
-        
-        // Water
         watergradient.drawWaterGradient();
 
-        // Background rocks
+        // Background rocks (depth 0)
         for (Sprite s : engine.getSprites()) {
-            if (s instanceof Polygon && ((Polygon) s).getDepth() == 0)
+            if (s instanceof Rock && ((Rock) s).getDepth() == 0)
                 s.draw(engine);
         }
 
-        // Foreground rock sprites (depth 1) — rendered second
+        // Foreground rocks (depth 1)
         for (Sprite s : engine.getSprites()) {
-            if (s instanceof Polygon && ((Polygon) s).getDepth() == 1)
+            if (s instanceof Rock && ((Rock) s).getDepth() == 1)
                 s.draw(engine);
         }
 
-        // All non-polygon sprites (squares, etc.)
+        // Non-rock sprites
         for (Sprite s : engine.getSprites()) {
-            if (!(s instanceof Polygon))
+            if (!(s instanceof Rock))
                 s.draw(engine);
         }
 
-        // Bottom rock layer (renders last — furthest in front)
         bottomLayer.draw(engine);
 
-        // In-progress rock preview
         if (currentRock != null) drawRockPreview(currentRock);
 
         UI.drawUI(currentRock, currentDepth, METERS_PER_PIXEL);
     }
 
+    // ── Rock preview ───────────────────────────────────────────────────────────
 
-
-
-
-    private static void drawRockPreview(Polygon poly) {
-        List<Float> verts = poly.getVertices();
+    private static void drawRockPreview(Rock rock) {
+        List<Float> verts = rock.getVertices();
         int vc = verts.size() / 2;
         if (vc == 0) return;
 
-        // Vertex dots
         StdDraw.setPenColor(255, 210, 80);
         StdDraw.setPenRadius(0.012);
         for (int i = 0; i < vc; i++) {
@@ -192,7 +178,6 @@ public class Main {
                           engine.worldToScreenY(verts.get(i * 2 + 1)));
         }
 
-        // Edge lines
         StdDraw.setPenColor(180, 255, 120);
         StdDraw.setPenRadius(0.003);
         for (int i = 0; i < vc - 1; i++) {
@@ -202,28 +187,22 @@ public class Main {
                          engine.worldToScreenY(verts.get((i + 1) * 2 + 1)));
         }
 
-        // Preview line to mouse
         StdDraw.setPenColor(120, 180, 255);
         StdDraw.setPenRadius(0.002);
         StdDraw.line(engine.worldToScreenX(verts.get((vc - 1) * 2)),
                      engine.worldToScreenY(verts.get((vc - 1) * 2 + 1)),
                      StdDraw.mouseX(), StdDraw.mouseY());
 
-        // Hint
         StdDraw.setPenColor(255, 255, 200);
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
         StdDraw.textLeft(10, 55, "Shift+Click to close shape");
         StdDraw.setPenRadius(0.002);
     }
 
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
-    public static float worldMouseX() { 
-        return engine.screenToWorldX(StdDraw.mouseX()); 
-    }
-    private static float worldMouseY() { 
-        return engine.screenToWorldY(StdDraw.mouseY()); 
-    }
-
+    public static float worldMouseX() { return engine.screenToWorldX(StdDraw.mouseX()); }
+    private static float worldMouseY() { return engine.screenToWorldY(StdDraw.mouseY()); }
 
     private static void printHelp() {
         System.out.println("=== Submarine Game Editor ===");
@@ -236,5 +215,7 @@ public class Main {
         System.out.println("  C               → clear all sprites");
         System.out.println("  S               → save");
         System.out.println("  ESC             → save & exit");
+        System.out.println();
+        System.out.println("  Run Game.java to play.");
     }
 }

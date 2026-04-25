@@ -1,56 +1,67 @@
+import java.awt.Color;
+
 /**
- * Character — a living game entity (submarine, enemy, NPC, etc.).
+ * Character — the base class for any living entity in the game world.
  *
- * Separates "things that move and act" from static terrain sprites.
- * In a multiplayer game each client will receive Character state updates
- * over WebSockets; the server is authoritative for position and health.
+ * Intentionally minimal: it only captures what every moving entity needs —
+ * a position, velocity, rotation, and a visual representation.
+ * Game-specific concerns (health, damage, weapons) belong in subclasses.
  *
- * Extend this class for specific character types (PlayerSub, EnemySub, etc.).
+ * Extend this for players, enemies, NPCs, projectiles, etc.
  */
 public abstract class Character extends Sprite {
 
     // ── Physics state ──────────────────────────────────────────────────────────
-    protected float vx;          // velocity x  (world units / tick)
-    protected float vy;          // velocity y
-    protected float angle;       // heading in degrees (0 = right, 90 = up)
-    protected float speed;       // current speed magnitude
+    protected float vx;       // velocity x  (world units / tick)
+    protected float vy;       // velocity y  (world units / tick)
+    protected float angle;    // heading in degrees  (0 = right, 90 = up)
 
-    // ── Stats ──────────────────────────────────────────────────────────────────
-    protected int   maxHealth;
-    protected int   health;
-    protected boolean alive;
+    // ── Visual ─────────────────────────────────────────────────────────────────
+    /** Path to the image file used to render this character, or null for shape-only. */
+    protected String imagePath;
+
+    /** Display half-width and half-height in screen pixels (used for image scaling). */
+    protected float imageHalfW;
+    protected float imageHalfH;
 
     // ── Identity ───────────────────────────────────────────────────────────────
-    protected String id;         // unique identifier (UUID / player name)
-    protected String team;       // team tag for multiplayer ("red", "blue", etc.)
+    protected String id;      // unique identifier (UUID, player name, etc.)
 
-    // ── Collision geometry ─────────────────────────────────────────────────────
-    protected float collisionRadius; // simple circle hitbox radius (world units)
+    // ── Collision ──────────────────────────────────────────────────────────────
+    protected float collisionRadius;  // circle hitbox radius in world units
 
     // ── Constructor ────────────────────────────────────────────────────────────
 
-    public Character(String id, String team,
+    /**
+     * @param id               unique identifier for this entity
+     * @param x                initial world X
+     * @param y                initial world Y
+     * @param collisionRadius  circle hitbox radius in world units
+     * @param imagePath        path to sprite image, or null
+     * @param imageHalfW       half-width  for rendering (world units)
+     * @param imageHalfH       half-height for rendering (world units)
+     */
+    public Character(String id,
                      float x, float y,
                      float collisionRadius,
-                     int maxHealth,
-                     int r, int g, int b) {
-        super(x, y, r, g, b);
-        this.id               = id;
-        this.team             = team;
-        this.collisionRadius  = collisionRadius;
-        this.maxHealth        = maxHealth;
-        this.health           = maxHealth;
-        this.alive            = true;
-        this.vx               = 0;
-        this.vy               = 0;
-        this.angle            = 0;
-        this.speed            = 0;
+                     String imagePath,
+                     float imageHalfW, float imageHalfH) {
+        super(x, y, Color.WHITE);
+        this.id              = id;
+        this.collisionRadius = collisionRadius;
+        this.imagePath       = imagePath;
+        this.imageHalfW      = imageHalfW;
+        this.imageHalfH      = imageHalfH;
+        this.vx              = 0;
+        this.vy              = 0;
+        this.angle           = 0;
     }
 
     // ── Physics ────────────────────────────────────────────────────────────────
 
     /**
-     * Advance physics one tick. Override to add thrust, drag, etc.
+     * Advance this character's position by one tick.
+     * Override to add acceleration, gravity, steering, etc.
      */
     public void update() {
         x += vx;
@@ -58,152 +69,106 @@ public abstract class Character extends Sprite {
     }
 
     /**
-     * Apply a force in the character's current heading direction.
+     * Apply simple linear drag so the character doesn't drift forever.
+     * @param dragCoefficient  fraction of velocity lost per tick (0 = no drag, 1 = instant stop)
      */
+    public void applyDrag(float dragCoefficient) {
+        vx *= (1f - dragCoefficient);
+        vy *= (1f - dragCoefficient);
+    }
+
+    /** Instantly set velocity and update heading to match. */
+    public void setVelocity(float vx, float vy) {
+        this.vx = vx;
+        this.vy = vy;
+        if (Math.abs(vx) > 0.01f || Math.abs(vy) > 0.01f)
+            this.angle = (float) Math.toDegrees(Math.atan2(vy, vx));
+    }
+
+    /** Add a velocity impulse in the character's current heading direction. */
     public void thrust(float magnitude) {
         double rad = Math.toRadians(angle);
         vx += (float) (Math.cos(rad) * magnitude);
         vy += (float) (Math.sin(rad) * magnitude);
     }
 
-    /**
-     * Apply simple linear drag so the character doesn't drift forever.
-     */
-    public void applyDrag(float dragCoefficient) {
-        vx *= (1f - dragCoefficient);
-        vy *= (1f - dragCoefficient);
-        speed = (float) Math.hypot(vx, vy);
-    }
-
-    public void setVelocity(float vx, float vy) {
-        this.vx = vx;
-        this.vy = vy;
-        this.speed = (float) Math.hypot(vx, vy);
-        if (speed > 0.01f) this.angle = (float) Math.toDegrees(Math.atan2(vy, vx));
-    }
-
+    /** Rotate heading by {@code degrees} (positive = counter-clockwise). */
     public void rotate(float degrees) {
         angle = (angle + degrees) % 360;
     }
 
-    // ── Health ─────────────────────────────────────────────────────────────────
-
-    public void takeDamage(int amount) {
-        if (!alive) return;
-        health = Math.max(0, health - amount);
-        if (health == 0) die();
-    }
-
-    public void heal(int amount) {
-        if (!alive) return;
-        health = Math.min(maxHealth, health + amount);
-    }
-
-    protected void die() {
-        alive = false;
-        vx = 0;
-        vy = 0;
-    }
-
-    public void respawn(float x, float y) {
-        this.x      = x;
-        this.y      = y;
-        this.health = maxHealth;
-        this.alive  = true;
-        this.vx     = 0;
-        this.vy     = 0;
-    }
-
     // ── Collision ──────────────────────────────────────────────────────────────
 
-    /** Circle-based hit test (fast, good enough for a submarine game). */
+    /** Circle hitbox: true when the given world point is within collisionRadius. */
     @Override
     public boolean contains(float px, float py) {
         float dx = px - x, dy = py - y;
         return dx * dx + dy * dy <= collisionRadius * collisionRadius;
     }
 
-    /** Circle vs circle overlap check against another Character. */
+    /** Circle-vs-circle overlap check against another Character. */
     public boolean overlaps(Character other) {
         float dx  = other.x - x, dy = other.y - y;
         float sum = collisionRadius + other.collisionRadius;
         return dx * dx + dy * dy < sum * sum;
     }
 
-    /** Circle vs polygon (rough AABB pre-check then defer to polygon). */
-    public boolean collidesWithPolygon(Polygon poly) {
-        float[] bounds = poly.getBounds();
-        // Quick AABB guard
+    /** Circle-vs-Rock (AABB pre-check, then precise point-in-polygon). */
+    public boolean collidesWithRock(Rock rock) {
+        float[] bounds = rock.getBounds();
         if (x + collisionRadius < bounds[0] || x - collisionRadius > bounds[1]) return false;
         if (y + collisionRadius < bounds[2] || y - collisionRadius > bounds[3]) return false;
-        // Precise: test centre point inside polygon
-        return poly.contains(x, y);
+        return rock.contains(x, y);
     }
 
-    // ── UI helpers ─────────────────────────────────────────────────────────────
+    // ── Rendering ──────────────────────────────────────────────────────────────
 
     /**
-     * Draw a health bar above the character (call from draw() implementations).
+     * Default rendering: draw the sprite image (if set) centred on the
+     * character's world position, rotated to match the heading angle.
+     * Subclasses may override for custom visuals.
      */
-    protected void drawHealthBar(GameEngine engine) {
+    @Override
+    public void draw(GameEngine engine) {
         double sx = engine.worldToScreenX(x);
-        double sy = engine.worldToScreenY(y) + collisionRadius + 10;
+        double sy = engine.worldToScreenY(y);
 
-        double barW  = collisionRadius * 1.4;
-        double barH  = 4;
-        double fill  = barW * ((double) health / maxHealth);
-
-        // Background
-        StdDraw.setPenColor(50, 50, 50);
-        StdDraw.filledRectangle(sx, sy, barW, barH);
-
-        // Health fill (green → red)
-        float ratio = (float) health / maxHealth;
-        int hr = (int) (255 * (1 - ratio));
-        int hg = (int) (255 * ratio);
-        StdDraw.setPenColor(hr, hg, 0);
-        StdDraw.filledRectangle(sx - barW + fill, sy, fill, barH);
-
-        // Border
-        StdDraw.setPenColor(180, 180, 180);
-        StdDraw.setPenRadius(0.002);
-        StdDraw.rectangle(sx, sy, barW, barH);
+        if (imagePath != null) {
+            StdDraw.picture(sx, sy, imagePath, imageHalfW * 2, imageHalfH * 2, -angle);
+        } else {
+            // Fallback: draw a coloured circle
+            StdDraw.setPenColor(color);
+            StdDraw.filledCircle(sx, sy, collisionRadius);
+        }
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────
 
-    /**
-     * Serialize for network transmission (position update packet).
-     * Format: CHARACTER_UPDATE id team x y vx vy angle health
-     */
     @Override
     public String serialize() {
-        return String.format("CHARACTER_UPDATE %s %s %.2f %.2f %.2f %.2f %.2f %d",
-                id, team, x, y, vx, vy, angle, health);
+        return String.format("CHARACTER %s %.2f %.2f %.2f %.2f %.2f",
+                id, x, y, vx, vy, angle);
     }
 
     // ── Getters / setters ──────────────────────────────────────────────────────
 
-    public String  getId()               { return id; }
-    public String  getTeam()             { return team; }
-    public float   getVx()               { return vx; }
-    public float   getVy()               { return vy; }
-    public float   getAngle()            { return angle; }
-    public float   getSpeed()            { return speed; }
-    public int     getHealth()           { return health; }
-    public int     getMaxHealth()        { return maxHealth; }
-    public boolean isAlive()             { return alive; }
-    public float   getCollisionRadius()  { return collisionRadius; }
+    public String getId()              { return id; }
+    public float  getVx()              { return vx; }
+    public float  getVy()              { return vy; }
+    public float  getAngle()           { return angle; }
+    public float  getSpeed()           { return (float) Math.hypot(vx, vy); }
+    public float  getCollisionRadius() { return collisionRadius; }
+    public String getImagePath()       { return imagePath; }
 
-    public void setAngle(float angle)    { this.angle = angle % 360; }
-    public void setAlive(boolean alive)  { this.alive = alive; }
+    public void setAngle(float angle)  { this.angle = angle % 360; }
+    public void setImagePath(String p) { this.imagePath = p; }
 
     @Override
     public String getType() { return "CHARACTER"; }
 
     @Override
     public String toString() {
-        return String.format("Character[%s team=%s pos=(%.1f,%.1f) hp=%d/%d alive=%b]",
-                id, team, x, y, health, maxHealth, alive);
+        return String.format("Character[%s pos=(%.1f,%.1f) vel=(%.2f,%.2f) angle=%.1f]",
+                id, x, y, vx, vy, angle);
     }
 }

@@ -3,8 +3,11 @@ import java.util.*;
 
 /**
  * GameEngine manages the sprite world, file I/O, and camera.
- * It is deliberately free of any StdDraw / rendering calls —
+ * Deliberately free of any StdDraw / rendering calls —
  * each Sprite subclass renders itself via draw(engine).
+ *
+ * All terrain sprites are {@link Rock} instances; the old Polygon class
+ * has been consolidated into Rock.
  */
 public class GameEngine {
 
@@ -48,16 +51,17 @@ public class GameEngine {
         String[] parts = line.trim().split("\\s+");
         if (parts.length == 0) return null;
         switch (parts[0]) {
-            case "POLYGON": return Polygon.deserialize(line);
-            case "ROCK":    return Rock.deserialize(line);
-            default:        return null;
+            // "POLYGON" kept for backwards-compatibility with old save files
+            case "POLYGON":
+            case "ROCK": return Rock.deserialize(line);
+            default:     return null;
         }
     }
 
     public void saveSprites() {
         try (PrintWriter writer = new PrintWriter(new FileWriter(dataFile))) {
             writer.println("# Submarine Game — Sprite Data");
-            writer.println("# Format: TYPE depth vertexCount x1 y1 ... r g b");
+            writer.println("# Format: ROCK depth vertexCount x1 y1 ... r g b");
             for (Sprite s : sprites) writer.println(s.serialize());
             System.out.println("Saved " + sprites.size() + " sprites to " + dataFile);
         } catch (IOException e) {
@@ -76,9 +80,7 @@ public class GameEngine {
         saveSprites();
     }
 
-    // Convenience aliases
-    public void addRock(Rock rock)       { addSprite(rock); }
-    public void addPolygon(Polygon poly) { addSprite(poly); }
+    public void addRock(Rock rock) { addSprite(rock); }
 
     public void deleteSprite(float worldX, float worldY) {
         for (int i = sprites.size() - 1; i >= 0; i--) {
@@ -107,18 +109,17 @@ public class GameEngine {
     // ── Camera ─────────────────────────────────────────────────────────────────
 
     public void panCamera(float dx, float dy) {
-        cameraX += dx; 
-        cameraY += dy; 
-    
-    
-    }
-    public void setCamera(float dx, float dy) {
-        cameraX=dx;
-        cameraY=dy;
+        cameraX += dx;
+        cameraY += dy;
     }
 
-    public float  getCameraX() { return cameraX; }
-    public float  getCameraY() { return cameraY; }
+    public void setCamera(float x, float y) {
+        cameraX = x;
+        cameraY = y;
+    }
+
+    public float getCameraX() { return cameraX; }
+    public float getCameraY() { return cameraY; }
 
     // ── Coordinate conversions ─────────────────────────────────────────────────
 
