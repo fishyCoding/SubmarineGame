@@ -106,7 +106,16 @@ public class GameEngine {
 
     // ── Camera ─────────────────────────────────────────────────────────────────
 
-    public void panCamera(float dx, float dy) { cameraX += dx; cameraY += dy; }
+    public void panCamera(float dx, float dy) {
+        cameraX += dx; 
+        cameraY += dy; 
+    
+    
+    }
+    public void setCamera(float dx, float dy) {
+        cameraX=dx;
+        cameraY=dy;
+    }
 
     public float  getCameraX() { return cameraX; }
     public float  getCameraY() { return cameraY; }

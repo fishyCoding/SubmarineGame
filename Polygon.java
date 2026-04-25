@@ -7,32 +7,28 @@ import java.util.*;
 public class Polygon extends Sprite {
 
     private final List<Float> vertices; 
-    private int   depth;               
+    private int depth;               
     private boolean closed;
 
-    // ── Palette ────────────────────────────────────────────────────────────────
-    // Using Color.decode ensures the IDE shows the color picker box
     private static final Color FG_BASE   = Color.decode("#19202A");
     private static final Color FG_SHADOW = Color.decode("#0F161E");
     private static final Color FG_HILIT  = Color.decode("#2A3646");
     
-    private static final Color BG_BASE   = Color.decode("#19202A");
-    private static final Color BG_SHADOW = Color.decode("#0F161E");
-    private static final Color BG_HILIT  = Color.decode("#2A3646");
+    private static final Color BG_BASE   = Color.decode("#101316");
+    private static final Color BG_SHADOW = Color.decode("#0c0f12");
+    private static final Color BG_HILIT  = Color.decode("#1e2126");
 
     private static final int OUTLINE_ALPHA_APPROX = 0x37;
 
-    // ── Construction ───────────────────────────────────────────────────────────
 
     public Polygon(float startX, float startY, Color color, int depth) {
-        super(startX, startY, color); // Passes Color to the updated Sprite class
+        super(startX, startY, color);
         this.vertices = new ArrayList<>();
         this.depth    = Math.max(0, Math.min(1, depth));
         this.closed   = false;
         addVertex(startX, startY);
     }
 
-    // ── Vertex management ──────────────────────────────────────────────────────
 
     public void addVertex(float x, float y)  { vertices.add(x); vertices.add(y); }
     public void closePath()                  { closed = true; }
@@ -241,7 +237,9 @@ public class Polygon extends Sprite {
     }
 
     @Override
-    public String getType() { return "POLYGON"; }
+    public String getType() { 
+        return "POLYGON"; 
+    }
 
     @Override
     public String toString() {
