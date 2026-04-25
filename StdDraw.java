@@ -713,7 +713,7 @@ public final class StdDraw implements ActionListener, MouseListener, MouseMotion
     private static double mouseY = 0;
 
     // queue of typed key characters
-    private static LinkedList<Character> keysTyped = new LinkedList<Character>();
+    private static LinkedList<java.lang.Character> keysTyped = new LinkedList<java.lang.Character>();
 
 
     // set of key codes currently pressed down
@@ -2138,7 +2138,8 @@ public final class StdDraw implements ActionListener, MouseListener, MouseMotion
             if (keysTyped.isEmpty()) {
                 throw new NoSuchElementException("your program has already processed all keystrokes");
             }
-            return keysTyped.remove(keysTyped.size() - 1);
+            char[] arr = new char[] { keysTyped.remove(keysTyped.size() - 1) };
+            return arr[0];
             // return keysTyped.removeLast();
         }
     }
@@ -2168,7 +2169,7 @@ public final class StdDraw implements ActionListener, MouseListener, MouseMotion
     @Override
     public void keyTyped(KeyEvent event) {
         synchronized (KEY_LOCK) {
-            keysTyped.addFirst(event.getKeyChar());
+            keysTyped.addFirst(java.lang.Character.valueOf(event.getKeyChar()));
         }
     }
 

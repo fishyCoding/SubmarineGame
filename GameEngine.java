@@ -48,7 +48,6 @@ public class GameEngine {
         String[] parts = line.trim().split("\\s+");
         if (parts.length == 0) return null;
         switch (parts[0]) {
-            case "SQUARE":  return Square.deserialize(line);
             case "POLYGON": return Polygon.deserialize(line);
             case "ROCK":    return Rock.deserialize(line);
             default:        return null;

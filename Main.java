@@ -137,16 +137,13 @@ public class Main {
     private static void render() {
         drawWaterGradient();
 
-        // Bottom rock layer (draws itself)
-        bottomLayer.draw(engine);
-
-        // Background rock sprites (depth 0)
+        // Background rock sprites (depth 0) — rendered first
         for (Sprite s : engine.getSprites()) {
             if (s instanceof Polygon && ((Polygon) s).getDepth() == 0)
                 s.draw(engine);
         }
 
-        // Foreground rock sprites (depth 1)
+        // Foreground rock sprites (depth 1) — rendered second
         for (Sprite s : engine.getSprites()) {
             if (s instanceof Polygon && ((Polygon) s).getDepth() == 1)
                 s.draw(engine);
@@ -157,6 +154,9 @@ public class Main {
             if (!(s instanceof Polygon))
                 s.draw(engine);
         }
+
+        // Bottom rock layer (renders last — furthest in front)
+        bottomLayer.draw(engine);
 
         // In-progress rock preview
         if (currentRock != null) drawRockPreview(currentRock);

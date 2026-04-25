@@ -2,14 +2,23 @@
  * Rock sprite — an underwater polygon with default grey coloring.
  * Inherits all drawing logic from Polygon.
  */
+import java.awt.Color;
+
 public class Rock extends Polygon {
+    private static Color rgbColor(int r, int g, int b) {
+    return new Color(r, g, b);
+    }
 
     public Rock(float startX, float startY, int depth) {
-        super(startX, startY, 170, 170, 170, depth);
+
+        super(startX, startY, rgbColor(170,170,170), depth);
     }
 
     public Rock(float startX, float startY, int r, int g, int b, int depth) {
-        super(startX, startY, r, g, b, depth);
+        
+        super(startX, startY, rgbColor(r,g,b), depth);
+        
+
     }
 
     @Override

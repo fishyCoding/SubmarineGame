@@ -1,4 +1,3 @@
-import java.util.List;
 
 /**
  * BottomRockLayer generates and renders the procedural seafloor.
@@ -140,14 +139,12 @@ public class BottomRockLayer {
         StdDraw.filledPolygon(bxs, bys);
     }
 
-    /** Scatter pits along the top silhouette for surface texture. */
+    /** Scatter cracks along the top silhouette for surface texture. */
     private void drawSilhouetteTexture(double[] xs, double[] ys, int visible) {
         int step = Math.max(1, visible / 30);
         for (int i = 0; i < visible; i += step) {
             double px = xs[i] + Math.sin(i * 1.7) * 8;
             double py = ys[i] - 6 - Math.abs(Math.cos(i * 2.1)) * 8;
-            StdDraw.setPenColor(SHADOW[0] + 8, SHADOW[1] + 8, SHADOW[2] + 8);
-            StdDraw.filledCircle(px, py, 2.5 + (i % 4) * 0.7);
 
             if (i % (step * 2) == 0 && i + step < visible) {
                 StdDraw.setPenColor(EDGE_DARK[0], EDGE_DARK[1], EDGE_DARK[2]);
