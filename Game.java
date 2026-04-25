@@ -21,7 +21,7 @@ import java.util.List;
 public class Game {
 
     // ── Canvas ─────────────────────────────────────────────────────────────────
-    private static final int    WIDTH         = 1600;
+    private static final int    WIDTH         = 1300;
     private static final int    HEIGHT        = 1000;
 
     // ── World ──────────────────────────────────────────────────────────────────
@@ -153,18 +153,19 @@ public class Game {
         // 4. Seafloor
         bottomLayer.draw(engine);
 
+
+
+        // 6. Fog of war — covers everything outside the visible oval
+        HUD.drawFog(HEIGHT, WIDTH, CX, CY);
+        
         // 5. Radar outlines — drawn BEFORE the fog so they show through it
         float pingAlpha = pingAlpha();
         if (pingAlpha > 0f) drawRadarOutlines(pingAlpha);
-
-        // 6. Fog of war — covers everything outside the visible oval
-        drawFog();
-
         // 7. Submarine — always drawn at screen centre, on top of the fog
         player.drawCentred(CX, CY);
 
         // 8. HUD — topmost layer
-        drawHUD();
+        HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);
     }
 
     // ── Radar ──────────────────────────────────────────────────────────────────
@@ -186,6 +187,7 @@ public class Game {
         for (Sprite s : engine.getSprites()) {
             if (!(s instanceof Rock)) continue;
             Rock rock = (Rock) s;
+            if(rock.getDepth() == 0) continue; // skip background rocks
             List<Float> verts = rock.getVertices();
             int count = verts.size() / 2;
             if (count < 3) continue;

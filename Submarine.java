@@ -1,4 +1,3 @@
-import java.awt.Color;
 
 /**
  * Submarine — a player-controlled or AI underwater vehicle.
@@ -91,6 +90,10 @@ public class Submarine extends Character {
             rotate(TURN_SPEED);
         if (StdDraw.isKeyPressed('D') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT))
             rotate(-TURN_SPEED);
+        if (StdDraw.isKeyPressed('P') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_P))
+            takeDamage(50);
+        if (StdDraw.isKeyPressed('O') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_O))
+            respawn(0, -200);
     }
 
     // ── Health / damage ────────────────────────────────────────────────────────

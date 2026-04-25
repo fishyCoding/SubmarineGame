@@ -19,9 +19,9 @@ public class Rock extends Sprite {
     private boolean           closed;
 
     // ── Palette ────────────────────────────────────────────────────────────────
-    private static final Color FG_BASE   = Color.decode("#19202A");
-    private static final Color FG_SHADOW = Color.decode("#0F161E");
-    private static final Color FG_HILIT  = Color.decode("#2A3646");
+    private static final Color FG_BASE   = Color.decode("#5e646d");
+    private static final Color FG_SHADOW = Color.decode("#3b4550");
+    private static final Color FG_HILIT  = Color.decode("#7b8797");
 
     private static final Color BG_BASE   = Color.decode("#101316");
     private static final Color BG_SHADOW = Color.decode("#0c0f12");
