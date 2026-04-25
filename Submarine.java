@@ -125,55 +125,44 @@ public class Submarine extends Character {
 
     // ── Rendering ──────────────────────────────────────────────────────────────
 
-    @Override
-    public void draw(GameEngine engine) {
+    /**
+     * Draw the submarine always centred at (cx, cy) in screen space.
+     * The game loop passes WIDTH/2, HEIGHT/2 so the sub never moves on screen.
+     */
+    public void drawCentred(double cx, double cy) {
         if (!alive) {
-            drawWreck(engine);
+            drawWreck(cx, cy);
             return;
         }
-
-        double sx = engine.worldToScreenX(x);
-        double sy = engine.worldToScreenY(y);
-
         if (imagePath != null) {
-            // Sprite image — rotated to heading
-            StdDraw.picture(sx, sy, imagePath,
-                            imageHalfW * 2, imageHalfH * 2,
-                            -angle);
+            StdDraw.picture(cx, cy, imagePath,
+                            imageHalfW * 2, imageHalfH * 2, -angle);
         } else {
-            // Procedural sub body
-            drawSubBody(engine, sx, sy);
+            drawSubBody(cx, cy);
         }
-
-        drawHealthBar(engine);
     }
 
-    /** Draw a simple ellipse + conning tower when no image is set. */
-    private void drawSubBody(GameEngine engine, double sx, double sy) {
+    /** Procedural hull + conning tower, drawn at the given screen position. */
+    private void drawSubBody(double sx, double sy) {
         double rad = Math.toRadians(angle);
         double cos = Math.cos(rad), sin = Math.sin(rad);
 
-        // Hull
         StdDraw.setPenColor(60, 80, 110);
         StdDraw.filledEllipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
 
-        // Conning tower
         double twrX = sx + cos * 4 - sin * BODY_HALF_H * 0.7;
         double twrY = sy + sin * 4 + cos * BODY_HALF_H * 0.7;
         StdDraw.setPenColor(45, 65, 90);
         StdDraw.filledRectangle(twrX, twrY, 6, 8);
 
-        // Outline
         StdDraw.setPenColor(30, 45, 65);
         StdDraw.setPenRadius(0.003);
         StdDraw.ellipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
         StdDraw.setPenRadius(0.002);
     }
 
-    /** Draw a dim, sinking outline when destroyed. */
-    private void drawWreck(GameEngine engine) {
-        double sx = engine.worldToScreenX(x);
-        double sy = engine.worldToScreenY(y);
+    /** Dim wreck silhouette when destroyed. */
+    private void drawWreck(double sx, double sy) {
         StdDraw.setPenColor(40, 40, 50);
         StdDraw.filledEllipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
         StdDraw.setPenColor(60, 60, 70);
@@ -181,27 +170,12 @@ public class Submarine extends Character {
         StdDraw.ellipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
     }
 
-    /** Draws a green-to-red health bar above the submarine. */
-    private void drawHealthBar(GameEngine engine) {
-        double sx   = engine.worldToScreenX(x);
-        double sy   = engine.worldToScreenY(y) + collisionRadius + 10;
-        double barW = collisionRadius * 1.4;
-        double barH = 4;
-        double fill = barW * ((double) health / maxHealth);
-
-        // Background track
-        StdDraw.setPenColor(50, 50, 50);
-        StdDraw.filledRectangle(sx, sy, barW, barH);
-
-        // Health fill: green → red as HP falls
-        float ratio = (float) health / maxHealth;
-        StdDraw.setPenColor((int)(255 * (1 - ratio)), (int)(255 * ratio), 0);
-        StdDraw.filledRectangle(sx - barW + fill, sy, fill, barH);
-
-        // Border
-        StdDraw.setPenColor(180, 180, 180);
-        StdDraw.setPenRadius(0.002);
-        StdDraw.rectangle(sx, sy, barW, barH);
+    // draw(engine) kept for compatibility — delegates to centred version
+    @Override
+    public void draw(GameEngine engine) {
+        double sx = engine.worldToScreenX(x);
+        double sy = engine.worldToScreenY(y);
+        drawCentred(sx, sy);
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────

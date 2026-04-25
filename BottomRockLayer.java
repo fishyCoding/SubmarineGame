@@ -1,4 +1,3 @@
-
 /**
  * BottomRockLayer generates and renders the procedural seafloor.
  *
@@ -137,6 +136,44 @@ public class BottomRockLayer {
         }
         StdDraw.setPenColor(HILIT[0], HILIT[1], HILIT[2]);
         StdDraw.filledPolygon(bxs, bys);
+    }
+
+    /**
+     * Draw only the silhouette edge in green, at the given alpha (0.0–1.0).
+     * Called by Game when a radar ping is active.
+     */
+    public void drawRadarOutline(GameEngine engine, float alpha) {
+        if (alpha <= 0f) return;
+        int w = 1600;
+        int first = 0, last = points - 1;
+        while (first < last - 1 && engine.worldToScreenX(worldX[first + 1]) < -50) first++;
+        while (last > first + 1 && engine.worldToScreenX(worldX[last  - 1]) > w + 50) last--;
+
+        int visible = last - first + 1;
+        if (visible < 2) return;
+
+        int a = Math.min(255, (int)(alpha * 255));
+        // Outer glow pass (wider, dimmer)
+        StdDraw.setPenColor(new java.awt.Color(0, a / 3, 0));
+        StdDraw.setPenRadius(0.012);
+        for (int i = 0; i < visible - 1; i++) {
+            double x1 = engine.worldToScreenX(worldX[first + i]);
+            double y1 = engine.worldToScreenY(worldY[first + i]);
+            double x2 = engine.worldToScreenX(worldX[first + i + 1]);
+            double y2 = engine.worldToScreenY(worldY[first + i + 1]);
+            StdDraw.line(x1, y1, x2, y2);
+        }
+        // Core green edge
+        StdDraw.setPenColor(new java.awt.Color(0, Math.min(255, a), 0));
+        StdDraw.setPenRadius(0.003);
+        for (int i = 0; i < visible - 1; i++) {
+            double x1 = engine.worldToScreenX(worldX[first + i]);
+            double y1 = engine.worldToScreenY(worldY[first + i]);
+            double x2 = engine.worldToScreenX(worldX[first + i + 1]);
+            double y2 = engine.worldToScreenY(worldY[first + i + 1]);
+            StdDraw.line(x1, y1, x2, y2);
+        }
+        StdDraw.setPenRadius(0.002);
     }
 
     /** Scatter cracks along the top silhouette for surface texture. */
