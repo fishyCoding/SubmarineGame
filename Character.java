@@ -1,13 +1,12 @@
 import java.awt.Color;
 
 /**
- * Character — the base class for any living entity in the game world.
+ * Character — base class for every living entity in the game world.
  *
- * Intentionally minimal: it only captures what every moving entity needs —
- * a position, velocity, rotation, and a visual representation.
- * Game-specific concerns (health, damage, weapons) belong in subclasses.
- *
- * Extend this for players, enemies, NPCs, projectiles, etc.
+ * Stores position, velocity, heading, and a circular hitbox.
+ * Physics primitives that belong to ALL characters (drag, integration)
+ * live here. Movement mechanics that are specific to a vehicle or creature
+ * (thrust direction, turning rate, buoyancy) belong in subclasses.
  */
 public abstract class Character extends Sprite {
 
@@ -17,30 +16,18 @@ public abstract class Character extends Sprite {
     protected float angle;    // heading in degrees  (0 = right, 90 = up)
 
     // ── Visual ─────────────────────────────────────────────────────────────────
-    /** Path to the image file used to render this character, or null for shape-only. */
     protected String imagePath;
-
-    /** Display half-width and half-height in screen pixels (used for image scaling). */
-    protected float imageHalfW;
-    protected float imageHalfH;
+    protected float  imageHalfW;
+    protected float  imageHalfH;
 
     // ── Identity ───────────────────────────────────────────────────────────────
-    protected String id;      // unique identifier (UUID, player name, etc.)
+    protected String id;
 
     // ── Collision ──────────────────────────────────────────────────────────────
-    protected float collisionRadius;  // circle hitbox radius in world units
+    protected float collisionRadius;
 
     // ── Constructor ────────────────────────────────────────────────────────────
 
-    /**
-     * @param id               unique identifier for this entity
-     * @param x                initial world X
-     * @param y                initial world Y
-     * @param collisionRadius  circle hitbox radius in world units
-     * @param imagePath        path to sprite image, or null
-     * @param imageHalfW       half-width  for rendering (world units)
-     * @param imageHalfH       half-height for rendering (world units)
-     */
     public Character(String id,
                      float x, float y,
                      float collisionRadius,
@@ -60,8 +47,7 @@ public abstract class Character extends Sprite {
     // ── Physics ────────────────────────────────────────────────────────────────
 
     /**
-     * Advance this character's position by one tick.
-     * Override to add acceleration, gravity, steering, etc.
+     * Integrate velocity into position. Override to add gravity, steering, etc.
      */
     public void update() {
         x += vx;
@@ -69,51 +55,37 @@ public abstract class Character extends Sprite {
     }
 
     /**
-     * Apply simple linear drag so the character doesn't drift forever.
-     * @param dragCoefficient  fraction of velocity lost per tick (0 = no drag, 1 = instant stop)
+     * Apply linear drag — fraction of velocity lost per tick.
+     * 0 = no drag, 1 = instant stop.
      */
     public void applyDrag(float dragCoefficient) {
         vx *= (1f - dragCoefficient);
         vy *= (1f - dragCoefficient);
     }
 
-    /** Instantly set velocity and update heading to match. */
+    /**
+     * Directly set velocity. Does NOT update heading — subclasses decide
+     * whether their heading should track movement direction.
+     */
     public void setVelocity(float vx, float vy) {
         this.vx = vx;
         this.vy = vy;
-        if (Math.abs(vx) > 0.01f || Math.abs(vy) > 0.01f)
-            this.angle = (float) Math.toDegrees(Math.atan2(vy, vx));
-    }
-
-    /** Add a velocity impulse in the character's current heading direction. */
-    public void thrust(float magnitude) {
-        double rad = Math.toRadians(angle);
-        vx += (float) (Math.cos(rad) * magnitude);
-        vy += (float) (Math.sin(rad) * magnitude);
-    }
-
-    /** Rotate heading by {@code degrees} (positive = counter-clockwise). */
-    public void rotate(float degrees) {
-        angle = (angle + degrees) % 360;
     }
 
     // ── Collision ──────────────────────────────────────────────────────────────
 
-    /** Circle hitbox: true when the given world point is within collisionRadius. */
     @Override
     public boolean contains(float px, float py) {
         float dx = px - x, dy = py - y;
         return dx * dx + dy * dy <= collisionRadius * collisionRadius;
     }
 
-    /** Circle-vs-circle overlap check against another Character. */
     public boolean overlaps(Character other) {
         float dx  = other.x - x, dy = other.y - y;
         float sum = collisionRadius + other.collisionRadius;
         return dx * dx + dy * dy < sum * sum;
     }
 
-    /** Circle-vs-Rock (AABB pre-check, then precise point-in-polygon). */
     public boolean collidesWithRock(Rock rock) {
         float[] bounds = rock.getBounds();
         if (x + collisionRadius < bounds[0] || x - collisionRadius > bounds[1]) return false;
@@ -123,11 +95,6 @@ public abstract class Character extends Sprite {
 
     // ── Rendering ──────────────────────────────────────────────────────────────
 
-    /**
-     * Default rendering: draw the sprite image (if set) centred on the
-     * character's world position, rotated to match the heading angle.
-     * Subclasses may override for custom visuals.
-     */
     @Override
     public void draw(GameEngine engine) {
         double sx = engine.worldToScreenX(x);
@@ -136,7 +103,6 @@ public abstract class Character extends Sprite {
         if (imagePath != null) {
             StdDraw.picture(sx, sy, imagePath, imageHalfW * 2, imageHalfH * 2, -angle);
         } else {
-            // Fallback: draw a coloured circle
             StdDraw.setPenColor(color);
             StdDraw.filledCircle(sx, sy, collisionRadius);
         }
@@ -153,18 +119,17 @@ public abstract class Character extends Sprite {
     // ── Getters / setters ──────────────────────────────────────────────────────
 
     public String getId()              { return id; }
-    public float  getVx()              { return vx; }
-    public float  getVy()              { return vy; }
-    public float  getAngle()           { return angle; }
-    public float  getSpeed()           { return (float) Math.hypot(vx, vy); }
-    public float  getCollisionRadius() { return collisionRadius; }
-    public String getImagePath()       { return imagePath; }
+    public float  getVx()             { return vx; }
+    public float  getVy()             { return vy; }
+    public float  getAngle()          { return angle; }
+    public float  getSpeed()          { return (float) Math.hypot(vx, vy); }
+    public float  getCollisionRadius(){ return collisionRadius; }
+    public String getImagePath()      { return imagePath; }
 
-    public void setAngle(float angle)  { this.angle = angle % 360; }
-    public void setImagePath(String p) { this.imagePath = p; }
+    public void setAngle(float angle) { this.angle = angle % 360; }
+    public void setImagePath(String p){ this.imagePath = p; }
 
-    @Override
-    public String getType() { return "CHARACTER"; }
+    @Override public String getType() { return "CHARACTER"; }
 
     @Override
     public String toString() {
