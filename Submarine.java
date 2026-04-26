@@ -26,13 +26,13 @@ public class Submarine extends Character {
     private static final float MAX_SPEED        = 6f;
 
     // Rudder
-    private static final float RUDDER_RATE      = 2.0f;   // degrees deflected per tick while A/D held
+    private static final float RUDDER_RATE      = 0.5f;   // degrees deflected per tick while A/D held
     private static final float RUDDER_RETURN    = 1.5f;   // degrees returned to neutral per tick when released
     private static final float RUDDER_MAX       = 30f;    // hard clamp (degrees)
 
     // How strongly the rudder turns the heading — scales with forward speed
     // so a stationary sub can't spin in place
-    private static final float RUDDER_TURN_GAIN = 0.08f;  // degrees of heading change per degree of rudder per unit speed
+    private static final float RUDDER_TURN_GAIN = 0.02f;  // degrees of heading change per degree of rudder per unit speed
 
     // ── Rudder state ───────────────────────────────────────────────────────────
     private float rudderAngle = 0f;   // current deflection: + = port/left, - = starboard/right
