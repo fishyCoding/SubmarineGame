@@ -1,15 +1,15 @@
 /**
  * Submarine — player-controlled underwater vehicle.
  *
- * Movement model:
- *   W / S          — accelerate / brake along the current heading
- *   A / D          — rotate the heading left / right
- *   Q / E          — dive / surface vertically, independent of heading
+ * Controls:
+ *   W / S   — engine forward / reverse (thrust along current heading)
+ *   A / D   — deflect the rudder left / right (clamped to ±30°)
+ *             The rudder gradually turns the sub's heading while moving.
+ *             Releasing A/D lets the rudder drift back to neutral.
+ *   Q / E   — dive / surface directly, independent of heading and rudder
  *
- * The heading (angle) only tracks horizontal orientation. Vertical movement
- * via Q/E is layered on top as a separate velocity component, so the sub
- * can nose-level while still rising or sinking — much closer to how
- * ballast tanks actually work.
+ * The rudder is drawn as a small angled fin at the stern so the player can
+ * see its current deflection at a glance.
  */
 public class Submarine extends Character {
 
@@ -19,12 +19,23 @@ public class Submarine extends Character {
     private boolean alive;
 
     // ── Physics tuning ─────────────────────────────────────────────────────────
-    private static final float THRUST_ACCEL    = 0.35f;  // forward/back  (world-units / tick²)
-    private static final float VERTICAL_ACCEL  = 0.25f;  // Q/E vertical  (world-units / tick²)
-    private static final float HORIZONTAL_DRAG = 0.04f;  // fraction of vx lost per tick
-    private static final float VERTICAL_DRAG   = 0.06f;  // fraction of vy lost per tick (more resistance)
-    private static final float TURN_SPEED      = 2.5f;   // degrees / tick
-    private static final float MAX_SPEED       = 6f;     // world-units / tick
+    private static final float THRUST_ACCEL     = 0.35f;  // world-units / tick²
+    private static final float VERTICAL_ACCEL   = 0.30f;  // Q/E  world-units / tick²
+    private static final float DRAG             = 0.04f;
+    private static final float VERTICAL_DRAG    = 0.06f;
+    private static final float MAX_SPEED        = 6f;
+
+    // Rudder
+    private static final float RUDDER_RATE      = 2.0f;   // degrees deflected per tick while A/D held
+    private static final float RUDDER_RETURN    = 1.5f;   // degrees returned to neutral per tick when released
+    private static final float RUDDER_MAX       = 30f;    // hard clamp (degrees)
+
+    // How strongly the rudder turns the heading — scales with forward speed
+    // so a stationary sub can't spin in place
+    private static final float RUDDER_TURN_GAIN = 0.08f;  // degrees of heading change per degree of rudder per unit speed
+
+    // ── Rudder state ───────────────────────────────────────────────────────────
+    private float rudderAngle = 0f;   // current deflection: + = port/left, - = starboard/right
 
     // ── Visual ─────────────────────────────────────────────────────────────────
     private static final float BODY_HALF_W = 30f;
@@ -46,78 +57,68 @@ public class Submarine extends Character {
     // ── Input ──────────────────────────────────────────────────────────────────
 
     /**
-     * Poll keyboard and apply forces. Call once per tick before update().
-     *
-     *   W / Up    → thrust forward along heading
-     *   S / Down  → thrust backward along heading
-     *   A / Left  → rotate heading left (CCW)
-     *   D / Right → rotate heading right (CW)
-     *   Q         → dive (add downward velocity, independent of heading)
-     *   E         → surface (add upward velocity, independent of heading)
+     * Poll keyboard and queue forces. Call once per tick before update().
      */
     public void handleInput() {
         if (!alive) return;
 
-        // ── Rotation ───────────────────────────────────────────────────────────
-        if (StdDraw.isKeyPressed('A') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT))
-            rotate(TURN_SPEED);
-        if (StdDraw.isKeyPressed('D') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT))
-            rotate(-TURN_SPEED);
+        // ── Rudder (A/D) — deflect or return to neutral ────────────────────────
+        boolean aHeld = StdDraw.isKeyPressed('A') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT);
+        boolean dHeld = StdDraw.isKeyPressed('D') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT);
 
-        // ── Horizontal thrust along heading ───────────────────────────────────
-        if (StdDraw.isKeyPressed('W') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_UP))
-            thrustAlongHeading(THRUST_ACCEL);
-        if (StdDraw.isKeyPressed('S') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN))
-            thrustAlongHeading(-THRUST_ACCEL);
+        if (aHeld && !dHeld) {
+            rudderAngle = Math.min(rudderAngle + RUDDER_RATE, RUDDER_MAX);
+        } else if (dHeld && !aHeld) {
+            rudderAngle = Math.max(rudderAngle - RUDDER_RATE, -RUDDER_MAX);
+        } else {
+            // Neither or both held — drift back to neutral
+            if (rudderAngle > 0) rudderAngle = Math.max(0, rudderAngle - RUDDER_RETURN);
+            else                 rudderAngle = Math.min(0, rudderAngle + RUDDER_RETURN);
+        }
 
-        // ── Vertical movement — ballast-style, ignores heading ─────────────────
+        // ── Engine (W/S) — thrust along current heading ────────────────────────
+        if (StdDraw.isKeyPressed('W') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_UP)) {
+            double rad = Math.toRadians(angle);
+            vx += (float) (Math.cos(rad) * THRUST_ACCEL);
+            vy += (float) (Math.sin(rad) * THRUST_ACCEL);
+        }
+        if (StdDraw.isKeyPressed('S') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN)) {
+            double rad = Math.toRadians(angle);
+            vx -= (float) (Math.cos(rad) * THRUST_ACCEL);
+            vy -= (float) (Math.sin(rad) * THRUST_ACCEL);
+        }
+
+        // ── Q/E — vertical, ignores heading and rudder entirely ────────────────
         if (StdDraw.isKeyPressed('Q'))
-            vy -= VERTICAL_ACCEL;   // dive
+            vy -= VERTICAL_ACCEL;
         if (StdDraw.isKeyPressed('E'))
-            vy += VERTICAL_ACCEL;   // surface
+            vy += VERTICAL_ACCEL;
 
-        // ── Debug / dev keys ───────────────────────────────────────────────────
+        // ── Dev keys ───────────────────────────────────────────────────────────
         if (StdDraw.isKeyPressed('P'))
             takeDamage(50);
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_O))
             respawn(0, -200);
     }
 
-    // ── Movement helpers ───────────────────────────────────────────────────────
-
-    /**
-     * Accelerate along the current heading. Only affects vx — vertical (vy)
-     * is managed separately so Q/E feel independent of orientation.
-     */
-    private void thrustAlongHeading(float magnitude) {
-        double rad = Math.toRadians(angle);
-        vx += (float) (Math.cos(rad) * magnitude);
-        // Deliberately not touching vy here — that's Q/E's job
-    }
-
-    /**
-     * Rotate the horizontal heading by degrees (positive = left / CCW).
-     */
-    private void rotate(float degrees) {
-        angle = (angle + degrees) % 360;
-    }
-
     // ── Update loop ────────────────────────────────────────────────────────────
 
-    /**
-     * Physics step: apply separate drag to horizontal and vertical axes,
-     * clamp total speed, then integrate position.
-     */
     @Override
     public void update() {
         if (!alive) return;
 
-        // Separate drag so vertical momentum bleeds off slightly faster than
-        // horizontal — water resists diving/surfacing more than forward motion.
-        vx *= (1f - HORIZONTAL_DRAG);
+        // Rudder turns the heading proportional to forward speed and deflection.
+        // No speed = no turn, just like a real boat.
+        float forwardSpeed = (float)(vx * Math.cos(Math.toRadians(angle))
+                                   + vy * Math.sin(Math.toRadians(angle)));
+        angle += rudderAngle * RUDDER_TURN_GAIN * forwardSpeed;
+        angle  = angle % 360;
+
+        // Drag
+        vx *= (1f - DRAG);
         vy *= (1f - VERTICAL_DRAG);
 
-        // Clamp total speed
+        // Speed clamp
         float speed = getSpeed();
         if (speed > MAX_SPEED) {
             float scale = MAX_SPEED / speed;
@@ -125,7 +126,7 @@ public class Submarine extends Character {
             vy *= scale;
         }
 
-        super.update(); // x += vx, y += vy
+        super.update();
     }
 
     // ── Health / damage ────────────────────────────────────────────────────────
@@ -149,75 +150,82 @@ public class Submarine extends Character {
     }
 
     public void respawn(float rx, float ry) {
-        x      = rx;
-        y      = ry;
-        health = maxHealth;
-        alive  = true;
-        vx     = 0;
-        vy     = 0;
-        angle  = 0;
+        x           = rx;
+        y           = ry;
+        health      = maxHealth;
+        alive       = true;
+        vx          = 0;
+        vy          = 0;
+        angle       = 0;
+        rudderAngle = 0;
     }
 
     // ── Rendering ──────────────────────────────────────────────────────────────
 
-    /**
-     * Draw the sub centred at a fixed screen position.
-     * The game loop should pass (WIDTH/2, HEIGHT/2) so the sub stays centred.
-     */
     public void drawCentred(double cx, double cy) {
-        if (!alive) {
-            drawWreck(cx, cy);
-            return;
-        }
+        if (!alive) { drawWreck(cx, cy); return; }
         if (imagePath != null) {
-            StdDraw.picture(cx, cy, imagePath,
-                            imageHalfW * 2, imageHalfH * 2, -angle);
+            StdDraw.picture(cx, cy, imagePath, imageHalfW * 2, imageHalfH * 2, -angle);
         } else {
             drawSubBody(cx, cy);
         }
     }
 
-    /**
-     * Procedural hull + conning tower. The tower is offset perpendicular to
-     * the heading so it always sits on top of the hull regardless of rotation.
-     */
     private void drawSubBody(double sx, double sy) {
         double rad = Math.toRadians(angle);
         double cos = Math.cos(rad);
         double sin = Math.sin(rad);
 
-        // Hull
+        // ── Hull ───────────────────────────────────────────────────────────────
         StdDraw.setPenColor(60, 80, 110);
         StdDraw.filledEllipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
 
-        // Conning tower — offset perpendicular (normal) to the heading,
-        // centred slightly forward. In 2-D "perpendicular upward" in heading
-        // space is (-sin, cos).
-        double towerForward = 5.0;                  // forward along heading
-        double towerUp      = BODY_HALF_H * 0.85;   // perpendicular (above hull)
-        double twrX = sx + cos * towerForward - sin * towerUp;
-        double twrY = sy + sin * towerForward + cos * towerUp;
-
-        // Rotate a filled rectangle to match the heading using a rotated polygon
-        double tw = 5, th = 9;  // half-extents of the tower box
-        double[] xs = new double[4];
-        double[] ys = new double[4];
-        double[][] corners = {{-tw,-th},{tw,-th},{tw,th},{-tw,th}};
+        // ── Conning tower — sits on top of hull, rotated with heading ──────────
+        double towerFwd = 5.0;
+        double towerUp  = BODY_HALF_H * 0.85;
+        double twrX = sx + cos * towerFwd - sin * towerUp;
+        double twrY = sy + sin * towerFwd + cos * towerUp;
+        double tw = 5, th = 9;
+        double[] txs = new double[4];
+        double[] tys = new double[4];
+        double[][] tc = {{-tw,-th},{tw,-th},{tw,th},{-tw,th}};
         for (int i = 0; i < 4; i++) {
-            xs[i] = twrX + corners[i][0] * cos - corners[i][1] * sin;
-            ys[i] = twrY + corners[i][0] * sin + corners[i][1] * cos;
+            txs[i] = twrX + tc[i][0] * cos - tc[i][1] * sin;
+            tys[i] = twrY + tc[i][0] * sin + tc[i][1] * cos;
         }
         StdDraw.setPenColor(45, 65, 90);
-        StdDraw.filledPolygon(xs, ys);
+        StdDraw.filledPolygon(txs, tys);
 
-        // Outline
+        // ── Rudder — small fin at the stern, angled by rudderAngle ────────────
+        // Stern point is directly behind the hull centre along the heading
+        double sternX = sx - cos * BODY_HALF_W;
+        double sternY = sy - sin * BODY_HALF_W;
+
+        // Rudder rotates around the stern, its angle is heading + deflection
+        double rudRad = Math.toRadians(angle + rudderAngle);
+        double rudCos = Math.cos(rudRad);
+        double rudSin = Math.sin(rudRad);
+
+        // Thin elongated fin, hinged at the front (stern end of hull)
+        double rW = 2, rH = 10;
+        double[] rxs = new double[4];
+        double[] rys = new double[4];
+        // Local corners: hinge at top, fin extends backward
+        double[][] rc = {{-rW, 0},{rW, 0},{rW,-rH},{-rW,-rH}};
+        for (int i = 0; i < 4; i++) {
+            rxs[i] = sternX + rc[i][0] * rudCos - rc[i][1] * rudSin;
+            rys[i] = sternY + rc[i][0] * rudSin + rc[i][1] * rudCos;
+        }
+        StdDraw.setPenColor(80, 110, 150);
+        StdDraw.filledPolygon(rxs, rys);
+
+        // ── Hull outline ───────────────────────────────────────────────────────
         StdDraw.setPenColor(30, 45, 65);
         StdDraw.setPenRadius(0.003);
         StdDraw.ellipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
         StdDraw.setPenRadius(0.002);
     }
 
-    /** Dim wreck silhouette when destroyed. */
     private void drawWreck(double sx, double sy) {
         StdDraw.setPenColor(40, 40, 50);
         StdDraw.filledEllipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
@@ -228,9 +236,7 @@ public class Submarine extends Character {
 
     @Override
     public void draw(GameEngine engine) {
-        double sx = engine.worldToScreenX(x);
-        double sy = engine.worldToScreenY(y);
-        drawCentred(sx, sy);
+        drawCentred(engine.worldToScreenX(x), engine.worldToScreenY(y));
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────
@@ -243,15 +249,16 @@ public class Submarine extends Character {
 
     // ── Getters ────────────────────────────────────────────────────────────────
 
-    public int     getHealth()    { return health; }
-    public int     getMaxHealth() { return maxHealth; }
-    public boolean isAlive()      { return alive; }
+    public int     getHealth()     { return health; }
+    public int     getMaxHealth()  { return maxHealth; }
+    public boolean isAlive()       { return alive; }
+    public float   getRudderAngle(){ return rudderAngle; }
 
     @Override public String getType() { return "SUBMARINE"; }
 
     @Override
     public String toString() {
-        return String.format("Submarine[%s pos=(%.1f,%.1f) hp=%d/%d alive=%b]",
-                id, x, y, health, maxHealth, alive);
+        return String.format("Submarine[%s pos=(%.1f,%.1f) hp=%d/%d rudder=%.1f°]",
+                id, x, y, health, maxHealth, rudderAngle);
     }
 }
