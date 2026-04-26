@@ -12,10 +12,10 @@ public class EngineSound extends Sound {
 
     // ── Tuning ─────────────────────────────────────────────────────────────────
     /** Minimum hum even when dead still (machinery noise, reactor hum). */
-    private static final float IDLE_STRENGTH  = 40f;
+    private static final float IDLE_STRENGTH  = 5f;
 
     /** Extra strength added per unit of speed (so faster = louder). */
-    private static final float SPEED_GAIN     = 60f;
+    private static final float SPEED_GAIN     = 10f;
 
     /** Reference to the submarine so we can read its position and speed. */
     private final Submarine sub;
