@@ -176,53 +176,62 @@ public class Submarine extends Character {
         double cos = Math.cos(rad);
         double sin = Math.sin(rad);
 
-        // ── Hull ───────────────────────────────────────────────────────────────
-        StdDraw.setPenColor(60, 80, 110);
-        StdDraw.filledEllipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
-
-        // ── Conning tower — sits on top of hull, rotated with heading ──────────
-        double towerFwd = 5.0;
-        double towerUp  = BODY_HALF_H * 0.85;
-        double twrX = sx + cos * towerFwd - sin * towerUp;
-        double twrY = sy + sin * towerFwd + cos * towerUp;
-        double tw = 5, th = 9;
-        double[] txs = new double[4];
-        double[] tys = new double[4];
-        double[][] tc = {{-tw,-th},{tw,-th},{tw,th},{-tw,th}};
-        for (int i = 0; i < 4; i++) {
-            txs[i] = twrX + tc[i][0] * cos - tc[i][1] * sin;
-            tys[i] = twrY + tc[i][0] * sin + tc[i][1] * cos;
+        // ── Hull — approximated as a rotated ellipse via polygon ───────────────
+        // StdDraw.filledEllipse is always axis-aligned, so we tessellate manually.
+        int   SEGMENTS = 32;
+        double[] hx = new double[SEGMENTS];
+        double[] hy = new double[SEGMENTS];
+        for (int i = 0; i < SEGMENTS; i++) {
+            double t  = 2 * Math.PI * i / SEGMENTS;
+            double lx = Math.cos(t) * BODY_HALF_W;   // local ellipse point
+            double ly = Math.sin(t) * BODY_HALF_H;
+            hx[i] = sx + lx * cos - ly * sin;         // rotate into world
+            hy[i] = sy + lx * sin + ly * cos;
         }
-        StdDraw.setPenColor(45, 65, 90);
-        StdDraw.filledPolygon(txs, tys);
+        StdDraw.setPenColor(60, 80, 110);
+        StdDraw.filledPolygon(hx, hy);
+        StdDraw.setPenColor(30, 45, 65);
+        StdDraw.setPenRadius(0.003);
+        StdDraw.polygon(hx, hy);
+        StdDraw.setPenRadius(0.002);
 
-        // ── Rudder — small fin at the stern, angled by rudderAngle ────────────
-        // Stern point is directly behind the hull centre along the heading
+        // ── Rudder — fin at the stern, deflected by rudderAngle ───────────────
+        // Step 1: find the stern in world space (directly behind centre)
         double sternX = sx - cos * BODY_HALF_W;
         double sternY = sy - sin * BODY_HALF_W;
 
-        // Rudder rotates around the stern, its angle is heading + deflection
-        double rudRad = Math.toRadians(angle + rudderAngle);
+        // Step 2: build the rudder's local axes by rotating the hull axes by
+        //         rudderAngle. This keeps deflection relative to the hull, so
+        //         it can never exceed ±30° visually regardless of world angle.
+        double rudRad = Math.toRadians(rudderAngle);   // deflection only
         double rudCos = Math.cos(rudRad);
         double rudSin = Math.sin(rudRad);
 
-        // Thin elongated fin, hinged at the front (stern end of hull)
-        double rW = 2, rH = 10;
-        double[] rxs = new double[4];
-        double[] rys = new double[4];
-        // Local corners: hinge at top, fin extends backward
+        // Rudder local X axis = hull forward rotated by rudderAngle
+        double rxAxisX =  cos * rudCos - sin * rudSin;
+        double rxAxisY =  sin * rudCos + cos * rudSin;
+        // Rudder local Y axis = hull up rotated by rudderAngle
+        double ryAxisX = -sin * rudCos - cos * rudSin;
+        double ryAxisY = -cos * rudCos + sin * rudSin;  // wait, keep it perpendicular
+        // Actually: rudder Y = perpendicular to rudder X
+        ryAxisX = -rxAxisY;
+        ryAxisY =  rxAxisX;
+
+        // Step 3: fin corners in rudder-local space
+        //         hinge at (0,0), fin extends backward (negative local-X)
+        double rW = 2.5, rH = 11;
         double[][] rc = {{-rW, 0},{rW, 0},{rW,-rH},{-rW,-rH}};
+        double[] rfx = new double[4];
+        double[] rfy = new double[4];
         for (int i = 0; i < 4; i++) {
-            rxs[i] = sternX + rc[i][0] * rudCos - rc[i][1] * rudSin;
-            rys[i] = sternY + rc[i][0] * rudSin + rc[i][1] * rudCos;
+            rfx[i] = sternX + rc[i][0] * ryAxisX + rc[i][1] * rxAxisX;
+            rfy[i] = sternY + rc[i][0] * ryAxisY + rc[i][1] * rxAxisY;
         }
         StdDraw.setPenColor(80, 110, 150);
-        StdDraw.filledPolygon(rxs, rys);
-
-        // ── Hull outline ───────────────────────────────────────────────────────
-        StdDraw.setPenColor(30, 45, 65);
-        StdDraw.setPenRadius(0.003);
-        StdDraw.ellipse(sx, sy, BODY_HALF_W, BODY_HALF_H);
+        StdDraw.filledPolygon(rfx, rfy);
+        StdDraw.setPenColor(50, 80, 120);
+        StdDraw.setPenRadius(0.002);
+        StdDraw.polygon(rfx, rfy);
         StdDraw.setPenRadius(0.002);
     }
 
