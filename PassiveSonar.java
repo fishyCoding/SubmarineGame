@@ -21,7 +21,7 @@ public class PassiveSonar {
 
     // ── Panel geometry ─────────────────────────────────────────────────────────
     private static final int    PANEL_X      = 10;    // left edge of panel (screen px)
-    private static final int    PANEL_Y      = 10;    // bottom edge of panel
+    private static final int    PANEL_Y      = 200;   // bottom edge — must clear the fog's bottom strip (CY - FOG_HALF_H - rings*3)
     private static final int    PANEL_W      = 220;   // panel width
     private static final int    PANEL_H      = 90;    // panel height
 
