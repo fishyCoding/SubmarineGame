@@ -19,7 +19,8 @@ public class Rock extends Sprite {
 
     // ── Static resources ───────────────────────────────────────────────────────
     private static BufferedImage rockImage;
-    private static final String IMAGE_PATH = "rock1.png";
+    private static final String IMAGE_PATH      = "rock1.png";
+    private static final String IMAGE_PATH_DARK = "rock1dark.png";
 
     static {
         try {
@@ -133,9 +134,8 @@ public class Rock extends Sprite {
         screenW = Math.max(screenW, 1.0);
         screenH = Math.max(screenH, 1.0);
 
-        // StdDraw.picture() renders the PNG with arbitrary rotation.
-        // The angle parameter is counter-clockwise degrees, matching our convention.
-        StdDraw.picture(screenX, screenY, IMAGE_PATH, screenW, screenH, rotation);
+        String img = (depth == 0) ? IMAGE_PATH_DARK : IMAGE_PATH;
+        StdDraw.picture(screenX, screenY, img, screenW, screenH, rotation);
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────
