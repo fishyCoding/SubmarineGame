@@ -197,27 +197,41 @@ public class Rock extends Sprite {
         double screenX = engine.worldToScreenX(x);
         double screenY = engine.worldToScreenY(y);
 
-        // Draw pre-rotated image directly onto StdDraw's offscreen canvas via
-        // reflection — bypasses StdDraw.picture()'s per-frame rotation math entirely.
-        // Falls back to StdDraw.picture() if internals aren't accessible.
+        // Use StdDraw's own AffineTransform to convert from StdDraw coordinate
+        // space (origin bottom-left, Y up) to Java2D pixel space (origin top-left,
+        // Y down). This is the only reliable way — reading the transform StdDraw
+        // actually set on its offscreen canvas, so we never have to guess scaling.
         try {
+            // Get offscreen canvas
             java.lang.reflect.Field offscreenField =
                     StdDraw.class.getDeclaredField("offscreenImage");
             offscreenField.setAccessible(true);
             BufferedImage canvas = (BufferedImage) offscreenField.get(null);
+
+            // Get the Graphics2D StdDraw uses so we inherit its transform
+            java.lang.reflect.Field g2dField =
+                    StdDraw.class.getDeclaredField("offscreen");
+            g2dField.setAccessible(true);
+            Graphics2D stdG = (Graphics2D) g2dField.get(null);
+
+            // Transform our StdDraw-space centre point to pixel space
+            java.awt.geom.Point2D.Double src =
+                    new java.awt.geom.Point2D.Double(screenX, screenY);
+            java.awt.geom.Point2D.Double dst =
+                    new java.awt.geom.Point2D.Double();
+            stdG.getTransform().transform(src, dst);
+
+            int drawX = (int) Math.round(dst.x - rotatedCache.getWidth()  / 2.0);
+            int drawY = (int) Math.round(dst.y - rotatedCache.getHeight() / 2.0);
+
+            // Draw directly onto the raw canvas (no transform applied — image
+            // is already pre-rotated and pre-scaled in pixel space)
             Graphics2D g = canvas.createGraphics();
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-
-            // StdDraw Y is flipped: 0 = bottom. Java2D Y: 0 = top.
-            // Convert centre then offset by half the cached image size.
-            int canvasH = canvas.getHeight();
-            int drawX   = (int) Math.round(screenX - rotatedCache.getWidth()  / 2.0);
-            int drawY   = canvasH - (int) Math.round(screenY)
-                          - (int) Math.ceil(rotatedCache.getHeight() / 2.0);
-
             g.drawImage(rotatedCache, drawX, drawY, null);
             g.dispose();
+
         } catch (Exception e) {
             // Reflection unavailable — fall back to StdDraw.picture()
             String path = (depth == 0) ? IMAGE_PATH_DARK : IMAGE_PATH;
