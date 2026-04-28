@@ -43,28 +43,36 @@ public class Radar {
     }
 
     /**
-     * Draw a single rock's radar outline.
+     * Draw a single rock's radar outline using rock1outline.png.
      */
     private static void drawRockRadarOutline(Rock rock, GameEngine engine, int alpha) {
         double screenX = engine.worldToScreenX(rock.getX());
         double screenY = engine.worldToScreenY(rock.getY());
 
-        // Draw outer glow (very dim green)
-        StdDraw.setPenColor(new Color(0, alpha / 3, 0));
-        StdDraw.setPenRadius(0.012);
-        StdDraw.point(screenX, screenY);
+        if (radarRockImage != null && radarRockImage.getWidth() > 1) {
+            double screenW = Math.abs(radarRockImage.getWidth()  * rock.getScaleX());
+            double screenH = Math.abs(radarRockImage.getHeight() * rock.getScaleY());
+            screenW = Math.max(screenW, 1.0);
+            screenH = Math.max(screenH, 1.0);
 
-        // Draw bright green outline
-        StdDraw.setPenColor(new Color(0, Math.min(255, alpha), 0));
-        StdDraw.setPenRadius(0.003);
-        StdDraw.point(screenX, screenY);
+            // Tint the pen green for any supplemental lines, then draw the outline image.
+            // StdDraw.picture does not support per-pixel alpha blending with a tint, so
+            // we draw the image at full opacity and overlay a transparent green circle
+            // whose opacity encodes the ping strength.
+            StdDraw.picture(screenX, screenY, RADAR_IMAGE_PATH,
+                            screenW, screenH, rock.getRotation());
 
-        // Draw rotation indicator line (shows orientation)
-        double rotRad = Math.toRadians(rock.getRotation());
-        double indicatorLength = 20;
-        StdDraw.line(screenX, screenY,
-                    screenX + indicatorLength * Math.cos(rotRad),
-                    screenY - indicatorLength * Math.sin(rotRad));
+            // Green glow overlay scaled by alpha
+            int glowAlpha = Math.min(200, alpha);
+            StdDraw.setPenColor(new java.awt.Color(0, glowAlpha, 0, glowAlpha));
+            StdDraw.setPenRadius(0.006);
+            StdDraw.point(screenX, screenY);
+        } else {
+            // Fallback: bright green dot if image is missing
+            StdDraw.setPenColor(new java.awt.Color(0, Math.min(255, alpha), 0));
+            StdDraw.setPenRadius(0.008);
+            StdDraw.point(screenX, screenY);
+        }
     }
 
     /**

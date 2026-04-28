@@ -1,4 +1,3 @@
-
 /**
  * Main — Submarine Game Editor / Testbed
  *
@@ -152,16 +151,17 @@ public class Main {
 
             switch (editMode) {
                 case TRANSLATE:
-                    selectedRock.setPosition(selectedRock.getX() + deltaX, 
+                    selectedRock.setPosition(selectedRock.getX() + deltaX,
                                              selectedRock.getY() + deltaY);
                     break;
                 case ROTATE:
-                    float rockScreenX = (float) engine.worldToScreenX(selectedRock.getX());
-                    float rockScreenY = (float) engine.worldToScreenY(selectedRock.getY());
-                    float currentAngle = (float) Math.atan2(StdDraw.mouseY() - rockScreenY, 
-                                                            StdDraw.mouseX() - rockScreenX);
-                    float lastAngle = (float) Math.atan2(lastMouseY - rockScreenY, 
-                                                         lastMouseX - rockScreenX);
+                    // Compute angle from rock centre to cursor, both in world space.
+                    // Using world coords here avoids the screen/world mismatch that
+                    // previously broke the rotation direction.
+                    float rockWX = selectedRock.getX();
+                    float rockWY = selectedRock.getY();
+                    float currentAngle = (float) Math.atan2(mouseY    - rockWY, mouseX    - rockWX);
+                    float lastAngle    = (float) Math.atan2(lastMouseY - rockWY, lastMouseX - rockWX);
                     float deltaRotation = (float) Math.toDegrees(currentAngle - lastAngle);
                     selectedRock.addRotation(deltaRotation);
                     break;
@@ -208,21 +208,32 @@ public class Main {
             double screenX = engine.worldToScreenX(selectedRock.getX());
             double screenY = engine.worldToScreenY(selectedRock.getY());
             float[] bounds = selectedRock.getBounds();
-            
-            double halfWidth = Math.abs(engine.worldToScreenX(bounds[1]) - engine.worldToScreenX(bounds[0])) / 2;
+
+            double halfWidth  = Math.abs(engine.worldToScreenX(bounds[1]) - engine.worldToScreenX(bounds[0])) / 2;
             double halfHeight = Math.abs(engine.worldToScreenY(bounds[2]) - engine.worldToScreenY(bounds[3])) / 2;
-            double maxRadius = Math.max(halfWidth, halfHeight) * 1.3;
+            double maxRadius  = Math.max(halfWidth, halfHeight) * 1.3;
 
             if (editMode == Slider.Mode.ROTATE) {
                 StdDraw.setPenColor(255, 150, 100);
                 StdDraw.setPenRadius(0.004);
                 StdDraw.circle(screenX, screenY, maxRadius);
             } else if (editMode == Slider.Mode.SCALE) {
+                // Draw the rotated scale icon via a temporary Slider
+                Slider scaleHandle = new Slider((float) screenX, (float) screenY);
+                scaleHandle.setMode(Slider.Mode.SCALE);
+                scaleHandle.setRockRotation(selectedRock.getRotation());
+                // Draw manually at screen coords (Slider.draw() uses engine conversion,
+                // but we need raw screen coords here — so draw the axes directly).
                 StdDraw.setPenColor(150, 255, 100);
                 StdDraw.setPenRadius(0.004);
-                StdDraw.line(screenX - maxRadius * 1.2, screenY, screenX + maxRadius * 1.2, screenY);
-                StdDraw.line(screenX, screenY - maxRadius * 1.2, screenX, screenY + maxRadius * 1.2);
-                StdDraw.setPenRadius(0.006);
+                double rad  = Math.toRadians(selectedRock.getRotation());
+                double cosR = Math.cos(rad), sinR = Math.sin(rad);
+                double arm  = maxRadius * 1.1;
+                StdDraw.line(screenX - arm * cosR, screenY - arm * sinR,
+                             screenX + arm * cosR, screenY + arm * sinR);
+                StdDraw.line(screenX + arm * sinR, screenY - arm * cosR,
+                             screenX - arm * sinR, screenY + arm * cosR);
+                StdDraw.setPenRadius(0.008);
                 StdDraw.point(screenX, screenY);
             } else {
                 StdDraw.setPenColor(100, 200, 255);

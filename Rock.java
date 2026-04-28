@@ -125,64 +125,17 @@ public class Rock extends Sprite {
 
     @Override
     public void draw(GameEngine engine) {
-        if (rockImage == null || rockImage.getWidth() == 0) return;
-
         double screenX = engine.worldToScreenX(x);
         double screenY = engine.worldToScreenY(y);
-        double screenW = Math.abs(rockImage.getWidth() * scaleX);
+        double screenW = Math.abs(rockImage.getWidth()  * scaleX);
         double screenH = Math.abs(rockImage.getHeight() * scaleY);
 
-        // Ensure minimum size for visibility
         screenW = Math.max(screenW, 1.0);
         screenH = Math.max(screenH, 1.0);
 
-        // Draw the rock image with rotation
-        drawRotatedImage(screenX, screenY, screenW, screenH, rotation);
-
-        // Draw rotation indicator line
-        double rotRad = Math.toRadians(rotation);
-        double indicatorLength = Math.max(screenW, screenH) / 2 * 1.2;
-        StdDraw.setPenColor(200, 100, 200);
-        StdDraw.setPenRadius(0.002);
-        StdDraw.line(screenX, screenY,
-                     screenX + indicatorLength * Math.cos(rotRad),
-                     screenY - indicatorLength * Math.sin(rotRad));
-    }
-
-    private void drawRotatedImage(double screenX, double screenY, double screenW, double screenH, float angle) {
-        float radians = (float) Math.toRadians(angle);
-        float cos = (float) Math.cos(radians);
-        float sin = (float) Math.sin(radians);
-
-        double halfW = screenW / 2;
-        double halfH = screenH / 2;
-
-        double[] cornerX = new double[4];
-        double[] cornerY = new double[4];
-
-        double[][] corners = {
-            {-halfW, halfH},
-            {halfW, halfH},
-            {halfW, -halfH},
-            {-halfW, -halfH}
-        };
-
-        for (int i = 0; i < 4; i++) {
-            double cx = corners[i][0];
-            double cy = corners[i][1];
-            cornerX[i] = screenX + cx * cos - cy * sin;
-            cornerY[i] = screenY + cx * sin + cy * cos;
-        }
-
-        StdDraw.setPenColor(getColor());
-        StdDraw.filledPolygon(cornerX, cornerY);
-
-        StdDraw.setPenColor(100, 150, 200);
-        StdDraw.setPenRadius(0.003);
-        for (int i = 0; i < 4; i++) {
-            int next = (i + 1) % 4;
-            StdDraw.line(cornerX[i], cornerY[i], cornerX[next], cornerY[next]);
-        }
+        // StdDraw.picture() renders the PNG with arbitrary rotation.
+        // The angle parameter is counter-clockwise degrees, matching our convention.
+        StdDraw.picture(screenX, screenY, IMAGE_PATH, screenW, screenH, rotation);
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────

@@ -221,33 +221,7 @@ public class Game {
     }
 
     private static void drawRadarOutlines(float alpha) {
-        for (Sprite s : engine.getSprites()) {
-            if (!(s instanceof Rock)) continue;
-            Rock rock = (Rock) s;
-            if (rock.getDepth() == 0) continue;
-
-            int a = Math.min(255, (int)(alpha * 255));
-
-            double screenX = engine.worldToScreenX(rock.getX());
-            double screenY = engine.worldToScreenY(rock.getY());
-
-            // Draw green outline with glow
-            StdDraw.setPenColor(new Color(0, a / 3, 0));
-            StdDraw.setPenRadius(0.012);
-            StdDraw.point(screenX, screenY);
-
-            StdDraw.setPenColor(new Color(0, Math.min(255, a), 0));
-            StdDraw.setPenRadius(0.003);
-            StdDraw.point(screenX, screenY);
-
-            // Draw rotation indicator line
-            double rotRad = Math.toRadians(rock.getRotation());
-            double indicatorLength = 20;
-            StdDraw.line(screenX, screenY,
-                        screenX + indicatorLength * Math.cos(rotRad),
-                        screenY - indicatorLength * Math.sin(rotRad));
-        }
-
+        Radar.drawRadarOutlines(alpha, engine);
         bottomLayer.drawRadarOutline(engine, alpha);
         StdDraw.setPenRadius(0.002);
     }

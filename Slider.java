@@ -16,6 +16,8 @@ public class Slider extends Sprite {
 
     private Mode     mode;
     private boolean  selected;
+    /** Rotation of the associated rock (degrees). Used to orient the scale icon. */
+    private float    rockRotation = 0f;
 
     // ── Constructors ───────────────────────────────────────────────────────────
 
@@ -32,6 +34,9 @@ public class Slider extends Sprite {
 
     public void setSelected(boolean selected) { this.selected = selected; }
     public boolean isSelected() { return selected; }
+
+    /** Call this each frame so the scale icon stays aligned to the rock. */
+    public void setRockRotation(float degrees) { this.rockRotation = degrees; }
 
     // ── Collision ──────────────────────────────────────────────────────────────
 
@@ -112,17 +117,34 @@ public class Slider extends Sprite {
         StdDraw.setPenColor(150, 255, 100);  // Green for scale
         StdDraw.setPenRadius(0.008);
 
-        // Draw expanding square
-        double size = 6;
-        StdDraw.line(screenX - size, screenY - size, screenX + size, screenY - size);
-        StdDraw.line(screenX + size, screenY - size, screenX + size, screenY + size);
-        StdDraw.line(screenX + size, screenY + size, screenX - size, screenY + size);
-        StdDraw.line(screenX - size, screenY + size, screenX - size, screenY - size);
+        // Rotate the scale axes to match the rock's current rotation so the
+        // handle always shows which direction X and Y scaling will be applied.
+        double rad = Math.toRadians(rockRotation);
+        double cosR = Math.cos(rad);
+        double sinR = Math.sin(rad);
 
-        // Draw corner markers
-        double cornerDist = 10;
-        StdDraw.point(screenX - cornerDist, screenY - cornerDist);
-        StdDraw.point(screenX + cornerDist, screenY + cornerDist);
+        double arm    = 14;   // length of each axis arm
+        double corner = 10;   // distance to corner marker
+
+        // Local-X axis (horizontal in the rock's frame)
+        double ax1x = screenX - arm * cosR,  ax1y = screenY - arm * sinR;
+        double ax2x = screenX + arm * cosR,  ax2y = screenY + arm * sinR;
+        // Local-Y axis (vertical in the rock's frame, 90° CCW)
+        double ay1x = screenX + arm * sinR,  ay1y = screenY - arm * cosR;
+        double ay2x = screenX - arm * sinR,  ay2y = screenY + arm * cosR;
+
+        StdDraw.line(ax1x, ax1y, ax2x, ax2y);
+        StdDraw.line(ay1x, ay1y, ay2x, ay2y);
+
+        // Corner markers along the diagonal (45° in rock space)
+        double diagX = cosR - sinR;
+        double diagY = sinR + cosR;
+        double len   = Math.sqrt(diagX * diagX + diagY * diagY);
+        diagX /= len; diagY /= len;
+
+        StdDraw.setPenRadius(0.012);
+        StdDraw.point(screenX - corner * diagX, screenY - corner * diagY);
+        StdDraw.point(screenX + corner * diagX, screenY + corner * diagY);
     }
 
     // ── Serialization ─────────────────────────────────────────────────────────
