@@ -35,7 +35,7 @@ public class Game {
     private static boolean      rWasDown         = false;
 
     /** Strength of the sound burst spawned by a radar ping. */
-    private static final float  PING_SOUND_STRENGTH = 2000f;
+    private static final float  PING_SOUND_STRENGTH = 8000f;
 
     // ── Systems ────────────────────────────────────────────────────────────────
     private static GameEngine      engine;
@@ -141,7 +141,7 @@ public class Game {
         if (rDown && !rWasDown) {
             pingStartMs = System.currentTimeMillis();
             // Spawn a loud sound burst at the sub's position
-            sounds.add(new Sound(player.getX(), player.getY(),
+            sounds.add(new RadarSound(player.getX(), player.getY(),
                                  PING_SOUND_STRENGTH, "player_ping"));
             System.out.println("Radar ping!");
         }
@@ -157,10 +157,10 @@ public class Game {
         } else if (!mouseDown && mouseWasDown) {
             // Mouse just released — compute hold duration → strength
             long heldMs   = System.currentTimeMillis() - mousePressedMs;
-            float strength = Math.min(3000f, heldMs * 1.5f);   // 0–3000 over 0–2 s
+            float strength = Math.min(8000f, heldMs * 3.5f);   // 0–3000 over 0–2 s
             float wx = engine.screenToWorldX(StdDraw.mouseX());
             float wy = engine.screenToWorldY(StdDraw.mouseY());
-            sounds.add(new Sound(wx, wy, strength, "test"));
+            sounds.add(new TestSound(wx, wy, strength, "test"));
             System.out.printf("Test sound spawned at (%.0f, %.0f) strength=%.0f%n",
                     wx, wy, strength);
         }
@@ -225,30 +225,27 @@ public class Game {
             if (!(s instanceof Rock)) continue;
             Rock rock = (Rock) s;
             if (rock.getDepth() == 0) continue;
-            List<Float> verts = rock.getVertices();
-            int count = verts.size() / 2;
-            if (count < 3) continue;
 
             int a = Math.min(255, (int)(alpha * 255));
 
+            double screenX = engine.worldToScreenX(rock.getX());
+            double screenY = engine.worldToScreenY(rock.getY());
+
+            // Draw green outline with glow
             StdDraw.setPenColor(new Color(0, a / 3, 0));
             StdDraw.setPenRadius(0.012);
-            for (int i = 0; i < count; i++) {
-                int j = (i + 1) % count;
-                StdDraw.line(engine.worldToScreenX(verts.get(i * 2)),
-                             engine.worldToScreenY(verts.get(i * 2 + 1)),
-                             engine.worldToScreenX(verts.get(j * 2)),
-                             engine.worldToScreenY(verts.get(j * 2 + 1)));
-            }
+            StdDraw.point(screenX, screenY);
+
             StdDraw.setPenColor(new Color(0, Math.min(255, a), 0));
             StdDraw.setPenRadius(0.003);
-            for (int i = 0; i < count; i++) {
-                int j = (i + 1) % count;
-                StdDraw.line(engine.worldToScreenX(verts.get(i * 2)),
-                             engine.worldToScreenY(verts.get(i * 2 + 1)),
-                             engine.worldToScreenX(verts.get(j * 2)),
-                             engine.worldToScreenY(verts.get(j * 2 + 1)));
-            }
+            StdDraw.point(screenX, screenY);
+
+            // Draw rotation indicator line
+            double rotRad = Math.toRadians(rock.getRotation());
+            double indicatorLength = 20;
+            StdDraw.line(screenX, screenY,
+                        screenX + indicatorLength * Math.cos(rotRad),
+                        screenY - indicatorLength * Math.sin(rotRad));
         }
 
         bottomLayer.drawRadarOutline(engine, alpha);

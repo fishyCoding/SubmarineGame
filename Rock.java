@@ -1,272 +1,238 @@
 import java.awt.Color;
-import java.util.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import javax.imageio.ImageIO;
 
 /**
- * Rock — an underwater polygon sprite with procedural silhouette rendering.
+ * Rock — an image-based sprite with rotation and scale transforms.
  *
- * The old Polygon base class has been folded in here: Rock now owns all
- * vertex management, rendering, collision, and serialization logic directly.
+ * Each rock is defined by:
+ *   - Position (x, y)
+ *   - Rotation (angle in degrees)
+ *   - Scale (scaleX, scaleY)
+ *   - Depth layer (0 = background, 1 = foreground)
+ *   - Color tint (for radar)
  *
- * Depth layers:
- *   0 = background (darker, less rough)
- *   1 = foreground (lighter, rougher)
+ * The rock image is loaded from rock1.png and rendered with the transforms applied.
  */
 public class Rock extends Sprite {
 
-    // ── Vertex storage ─────────────────────────────────────────────────────────
-    private final List<Float> vertices;
-    private int               depth;
-    private boolean           closed;
+    // ── Static resources ───────────────────────────────────────────────────────
+    private static BufferedImage rockImage;
+    private static final String IMAGE_PATH = "rock1.png";
 
-    // ── Palette ────────────────────────────────────────────────────────────────
-    private static final Color FG_BASE   = Color.decode("#5e646d");
-    private static final Color FG_SHADOW = Color.decode("#3b4550");
-    private static final Color FG_HILIT  = Color.decode("#7b8797");
+    static {
+        try {
+            File imageFile = new File(IMAGE_PATH);
+            if (imageFile.exists()) {
+                rockImage = ImageIO.read(imageFile);
+            } else {
+                System.err.println("Warning: " + IMAGE_PATH + " not found");
+                // Create a placeholder image if file not found
+                rockImage = new BufferedImage(64, 64, BufferedImage.TYPE_INT_RGB);
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading rock image: " + e.getMessage());
+            rockImage = new BufferedImage(64, 64, BufferedImage.TYPE_INT_RGB);
+        }
+    }
 
-    private static final Color BG_BASE   = Color.decode("#101316");
-    private static final Color BG_SHADOW = Color.decode("#0c0f12");
-    private static final Color BG_HILIT  = Color.decode("#1e2126");
-
-    private static final int OUTLINE_ALPHA_APPROX = 0x37;
+    // ── Instance properties ────────────────────────────────────────────────────
+    private float rotation; // in degrees, 0-360
+    private float scaleX;
+    private float scaleY;
+    private int   depth;    // 0 = background, 1 = foreground
 
     // ── Constructors ───────────────────────────────────────────────────────────
 
-    public Rock(float startX, float startY, int depth) {
-        super(startX, startY, new Color(170, 170, 170));
-        this.vertices = new ArrayList<>();
-        this.depth    = Math.max(0, Math.min(1, depth));
-        this.closed   = false;
-        addVertex(startX, startY);
+    public Rock(float x, float y, int depth) {
+        super(x, y, new Color(170, 170, 170));
+        this.rotation = 0;
+        this.scaleX = 1.0f;
+        this.scaleY = 1.0f;
+        this.depth = Math.max(0, Math.min(1, depth));
     }
 
-    public Rock(float startX, float startY, int r, int g, int b, int depth) {
-        super(startX, startY, new Color(clampC(r), clampC(g), clampC(b)));
-        this.vertices = new ArrayList<>();
-        this.depth    = Math.max(0, Math.min(1, depth));
-        this.closed   = false;
-        addVertex(startX, startY);
+    public Rock(float x, float y, float rotation, float scaleX, float scaleY, int depth) {
+        super(x, y, new Color(170, 170, 170));
+        this.rotation = rotation % 360;
+        this.scaleX = Math.max(0.1f, scaleX);
+        this.scaleY = Math.max(0.1f, scaleY);
+        this.depth = Math.max(0, Math.min(1, depth));
     }
 
-    private static int clampC(int v) { return Math.max(0, Math.min(255, v)); }
+    // ── Transform properties ───────────────────────────────────────────────────
 
-    // ── Vertex API ─────────────────────────────────────────────────────────────
-
-    public void addVertex(float x, float y)  { vertices.add(x); vertices.add(y); }
-    public void closePath()                  { closed = true; }
-
-    public void removeLastVertex() {
-        if (vertices.size() >= 4) {
-            vertices.remove(vertices.size() - 1);
-            vertices.remove(vertices.size() - 1);
-        }
+    public void setRotation(float rotation) {
+        this.rotation = rotation % 360;
     }
 
-    public List<Float> getVertices()  { return new ArrayList<>(vertices); }
-    protected void    clearVertices() { vertices.clear(); }
-
-    public int     getDepth()       { return depth; }
-    public boolean isClosed()       { return closed; }
-    public int     getVertexCount() { return vertices.size() / 2; }
-
-    /** Returns [minX, maxX, minY, maxY] in world coordinates. */
-    public float[] getBounds() {
-        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE;
-        float minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
-        for (int i = 0; i < vertices.size(); i += 2) {
-            minX = Math.min(minX, vertices.get(i));
-            maxX = Math.max(maxX, vertices.get(i));
-            minY = Math.min(minY, vertices.get(i + 1));
-            maxY = Math.max(maxY, vertices.get(i + 1));
-        }
-        return new float[]{minX, maxX, minY, maxY};
+    public void addRotation(float deltaRotation) {
+        this.rotation = (rotation + deltaRotation) % 360;
     }
+
+    public float getRotation() { return rotation; }
+
+    public void setScale(float sx, float sy) {
+        this.scaleX = Math.max(0.1f, sx);
+        this.scaleY = Math.max(0.1f, sy);
+    }
+
+    public void multiplyScale(float sx, float sy) {
+        this.scaleX = Math.max(0.1f, scaleX * sx);
+        this.scaleY = Math.max(0.1f, scaleY * sy);
+    }
+
+    public float getScaleX() { return scaleX; }
+    public float getScaleY() { return scaleY; }
+
+    public int getDepth() { return depth; }
+    public void setDepth(int d) { this.depth = Math.max(0, Math.min(1, d)); }
 
     // ── Collision ──────────────────────────────────────────────────────────────
 
-    /** Point-in-polygon test via ray casting. */
+    /**
+     * Returns approximate bounds considering rotation and scale.
+     * Returns [minX, maxX, minY, maxY] in world coordinates.
+     */
+    public float[] getBounds() {
+        float width = rockImage.getWidth() * scaleX;
+        float height = rockImage.getHeight() * scaleY;
+
+        // Approximate bounds (doesn't account for rotation perfectly)
+        float halfW = width / 2;
+        float halfH = height / 2;
+
+        float minX = x - halfW;
+        float maxX = x + halfW;
+        float minY = y - halfH;
+        float maxY = y + halfH;
+
+        return new float[]{minX, maxX, minY, maxY};
+    }
+
     @Override
     public boolean contains(float px, float py) {
-        if (vertices.size() < 6) return false;
-        int     count  = vertices.size() / 2;
-        boolean inside = false;
-        for (int i = 0, j = count - 1; i < count; j = i++) {
-            float xi = vertices.get(i * 2),     yi = vertices.get(i * 2 + 1);
-            float xj = vertices.get(j * 2),     yj = vertices.get(j * 2 + 1);
-            if ((yi > py) != (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi)
-                inside = !inside;
-        }
-        return inside;
+        // Simple circle collision for now
+        float dx = px - x;
+        float dy = py - y;
+        float radius = Math.max(rockImage.getWidth() * scaleX,
+                                rockImage.getHeight() * scaleY) / 2;
+        return dx * dx + dy * dy <= radius * radius;
     }
 
     // ── Rendering ──────────────────────────────────────────────────────────────
 
     @Override
     public void draw(GameEngine engine) {
-        if (vertices.size() < 6) return;
+        if (rockImage == null || rockImage.getWidth() == 0) return;
 
-        float      roughness = depth == 0 ? 3.5f : 7f;
-        double[][] shape     = buildRockSilhouette(vertices, roughness, engine);
-        double[]   xs        = shape[0];
-        double[]   ys        = shape[1];
+        double screenX = engine.worldToScreenX(x);
+        double screenY = engine.worldToScreenY(y);
+        double screenW = Math.abs(rockImage.getWidth() * scaleX);
+        double screenH = Math.abs(rockImage.getHeight() * scaleY);
 
-        Color base   = depth == 1 ? FG_BASE   : BG_BASE;
-        Color shadow = depth == 1 ? FG_SHADOW : BG_SHADOW;
-        Color hilit  = depth == 1 ? FG_HILIT  : BG_HILIT;
+        // Ensure minimum size for visibility
+        screenW = Math.max(screenW, 1.0);
+        screenH = Math.max(screenH, 1.0);
 
-        drawOffsetFill(xs, ys, shadow, 4, -3);          // 1. drop-shadow
-        StdDraw.setPenColor(base);
-        StdDraw.filledPolygon(xs, ys);                  // 2. main fill
-        drawHighlight(xs, ys, hilit);                   // 3. interior highlight
-        Color outlineColor = new Color(
-            Math.max(0, shadow.getRed()   - OUTLINE_ALPHA_APPROX),
-            Math.max(0, shadow.getGreen() - OUTLINE_ALPHA_APPROX),
-            Math.max(0, shadow.getBlue()  - OUTLINE_ALPHA_APPROX)
-        );
-        drawOutline(xs, ys, outlineColor);              // 4. crisp outline
-    }
+        // Draw the rock image with rotation
+        drawRotatedImage(screenX, screenY, screenW, screenH, rotation);
 
-    // ── Private drawing helpers ────────────────────────────────────────────────
-
-    private static void drawOffsetFill(double[] xs, double[] ys,
-                                       Color c, double dx, double dy) {
-        double[] sxs = new double[xs.length];
-        double[] sys = new double[ys.length];
-        for (int i = 0; i < xs.length; i++) { sxs[i] = xs[i] + dx; sys[i] = ys[i] + dy; }
-        StdDraw.setPenColor(c);
-        StdDraw.filledPolygon(sxs, sys);
-    }
-
-    private static void drawHighlight(double[] xs, double[] ys, Color hilit) {
-        double cx = 0, cy = 0;
-        for (double v : xs) cx += v;  cx /= xs.length;
-        for (double v : ys) cy += v;  cy /= ys.length;
-
-        double[] hxs = new double[xs.length];
-        double[] hys = new double[ys.length];
-
-        for (int i = 0; i < xs.length; i++) {
-            hxs[i] = cx + (xs[i] - cx) * 0.72 - 3;
-            hys[i] = cy + (ys[i] - cy) * 0.72 + 3;
-        }
-        StdDraw.setPenColor(hilit);
-        StdDraw.filledPolygon(hxs, hys);
-
-        for (int i = 0; i < xs.length; i++) {
-            hxs[i] = cx + (xs[i] - cx) * 0.38 - 2;
-            hys[i] = cy + (ys[i] - cy) * 0.38 + 2;
-        }
-        Color coreHilit = new Color(
-            Math.min(255, hilit.getRed()   + 30),
-            Math.min(255, hilit.getGreen() + 30),
-            Math.min(255, hilit.getBlue()  + 30)
-        );
-        StdDraw.setPenColor(coreHilit);
-        StdDraw.filledPolygon(hxs, hys);
-    }
-
-    private static void drawOutline(double[] xs, double[] ys, Color c) {
-        int vCount = xs.length;
-        StdDraw.setPenColor(c);
-        StdDraw.setPenRadius(0.005);
-        for (int i = 0; i < vCount; i++) {
-            int next = (i + 1) % vCount;
-            StdDraw.line(xs[i], ys[i], xs[next], ys[next]);
-        }
-        Color innerRim = new Color(
-            Math.min(255, c.getRed()   + 25),
-            Math.min(255, c.getGreen() + 25),
-            Math.min(255, c.getBlue()  + 25)
-        );
-        StdDraw.setPenColor(innerRim);
+        // Draw rotation indicator line
+        double rotRad = Math.toRadians(rotation);
+        double indicatorLength = Math.max(screenW, screenH) / 2 * 1.2;
+        StdDraw.setPenColor(200, 100, 200);
         StdDraw.setPenRadius(0.002);
-        for (int i = 0; i < vCount; i++) {
-            int next = (i + 1) % vCount;
-            StdDraw.line(xs[i], ys[i], xs[next], ys[next]);
-        }
-        StdDraw.setPenRadius(0.002);
+        StdDraw.line(screenX, screenY,
+                     screenX + indicatorLength * Math.cos(rotRad),
+                     screenY - indicatorLength * Math.sin(rotRad));
     }
 
-    /**
-     * Subdivides each edge into {@code segments} pieces and displaces each
-     * sub-point outward along the edge normal using multi-octave sine noise,
-     * producing an organic rock silhouette from a rough convex hull.
-     */
-    static double[][] buildRockSilhouette(List<Float> vertices,
-                                          float roughness,
-                                          GameEngine engine) {
-        int    count    = vertices.size() / 2;
-        int    segments = 5;
-        int    total    = count * segments;
-        double[] xs     = new double[total];
-        double[] ys     = new double[total];
-        int idx = 0;
+    private void drawRotatedImage(double screenX, double screenY, double screenW, double screenH, float angle) {
+        float radians = (float) Math.toRadians(angle);
+        float cos = (float) Math.cos(radians);
+        float sin = (float) Math.sin(radians);
 
-        for (int i = 0; i < count; i++) {
-            float x1 = vertices.get(i * 2),            y1 = vertices.get(i * 2 + 1);
-            float x2 = vertices.get(((i+1)%count) * 2), y2 = vertices.get(((i+1)%count) * 2 + 1);
-            double dx = x2 - x1, dy = y2 - y1;
-            double len = Math.hypot(dx, dy);
-            double nx  = len > 0 ? -dy / len : 0;
-            double ny  = len > 0 ?  dx / len : 0;
+        double halfW = screenW / 2;
+        double halfH = screenH / 2;
 
-            for (int s = 0; s < segments; s++) {
-                double t     = s / (double) segments;
-                double px    = x1 + dx * t;
-                double py    = y1 + dy * t;
-                double phase = (x1 + y1) * 0.03 + i * 1.618 + t * Math.PI * 2;
-                double noise = Math.sin(phase)           * roughness
-                             + Math.cos(phase * 1.7 + 1) * roughness * 0.4
-                             + Math.sin(phase * 3.1 + 2) * roughness * 0.15;
-                px += nx * noise;
-                py += ny * noise;
-                xs[idx] = engine.worldToScreenX((float) px);
-                ys[idx] = engine.worldToScreenY((float) py);
-                idx++;
-            }
+        double[] cornerX = new double[4];
+        double[] cornerY = new double[4];
+
+        double[][] corners = {
+            {-halfW, halfH},
+            {halfW, halfH},
+            {halfW, -halfH},
+            {-halfW, -halfH}
+        };
+
+        for (int i = 0; i < 4; i++) {
+            double cx = corners[i][0];
+            double cy = corners[i][1];
+            cornerX[i] = screenX + cx * cos - cy * sin;
+            cornerY[i] = screenY + cx * sin + cy * cos;
         }
-        return new double[][]{xs, ys};
+
+        StdDraw.setPenColor(getColor());
+        StdDraw.filledPolygon(cornerX, cornerY);
+
+        StdDraw.setPenColor(100, 150, 200);
+        StdDraw.setPenRadius(0.003);
+        for (int i = 0; i < 4; i++) {
+            int next = (i + 1) % 4;
+            StdDraw.line(cornerX[i], cornerY[i], cornerX[next], cornerY[next]);
+        }
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────
 
     @Override
     public String serialize() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("ROCK ").append(depth).append(" ").append(getVertexCount());
-        for (float v : vertices) sb.append(" ").append(String.format("%.1f", v));
-        sb.append(" ").append(getR()).append(" ").append(getG()).append(" ").append(getB());
-        return sb.toString();
+        return String.format("IMAGEROCK %d %.1f %.1f %.1f %.2f %.2f %d %d %d",
+                depth, x, y, rotation, scaleX, scaleY, getR(), getG(), getB());
     }
 
     public static Rock deserialize(String line) {
         try {
             String[] p = line.trim().split("\\s+");
-            if (p.length < 6) return null;
-            int depth       = Integer.parseInt(p[1]);
-            int vertexCount = Integer.parseInt(p[2]);
-            if (p.length < 3 + vertexCount * 2 + 3) return null;
 
-            Rock rock = new Rock(Float.parseFloat(p[3]), Float.parseFloat(p[4]), depth);
-            rock.clearVertices();
-
-            int idx = 3;
-            for (int i = 0; i < vertexCount; i++) {
-                rock.addVertex(Float.parseFloat(p[idx++]), Float.parseFloat(p[idx++]));
+            // Handle old ROCK format for backwards compatibility
+            if (p[0].equals("ROCK")) {
+                int depth = Integer.parseInt(p[1]);
+                int vertexCount = Integer.parseInt(p[2]);
+                // Skip loading old polygon rocks - they're now image-based
+                return null;
             }
-            rock.setColor(Integer.parseInt(p[idx]),
-                          Integer.parseInt(p[idx + 1]),
-                          Integer.parseInt(p[idx + 2]));
-            rock.closePath();
+
+            // Parse new IMAGEROCK format
+            if (p.length < 9) return null;
+
+            int depth = Integer.parseInt(p[1]);
+            float x = Float.parseFloat(p[2]);
+            float y = Float.parseFloat(p[3]);
+            float rotation = Float.parseFloat(p[4]);
+            float scaleX = Float.parseFloat(p[5]);
+            float scaleY = Float.parseFloat(p[6]);
+            int r = Integer.parseInt(p[7]);
+            int g = Integer.parseInt(p[8]);
+            int b = Integer.parseInt(p[9]);
+
+            Rock rock = new Rock(x, y, rotation, scaleX, scaleY, depth);
+            rock.setColor(r, g, b);
             return rock;
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            System.err.println("Error deserializing rock: " + e.getMessage());
+            return null;
+        }
     }
 
     @Override
-    public String getType() { return "ROCK"; }
+    public String getType() { return "IMAGEROCK"; }
 
     @Override
     public String toString() {
-        return String.format("Rock(%d vertices, depth=%d, color=RGB(%d,%d,%d))",
-                getVertexCount(), depth, getR(), getG(), getB());
+        return String.format("Rock(x=%.0f, y=%.0f, rot=%.1f°, scale=%.2f,%.2f, depth=%d)",
+                x, y, rotation, scaleX, scaleY, depth);
     }
 }

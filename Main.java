@@ -1,21 +1,20 @@
-import java.util.List;
 
 /**
  * Main — Submarine Game Editor / Testbed
  *
- * Run this to build and inspect the world.
+ * Run this to build and inspect the world using an image-based rock system.
  * Run {@link Game} to play.
  *
  * Controls:
- *   Click              Add vertex to current rock
- *   Shift+Click        Finish / close current rock
- *   Arrow Keys         Pan camera
+ *   Click              Select rock / edit mode
+ *   Drag               Transform selected rock (translate/rotate/scale)
+ *   1/2/3              Change editing mode (1=Translate, 2=Rotate, 3=Scale)
  *   Space              Toggle depth layer (background / foreground)
- *   U                  Undo last vertex
  *   D                  Delete sprite under cursor
  *   C                  Clear all sprites
  *   S                  Save
- *   ESC                Finish current rock + exit
+ *   N                  Create new rock at cursor
+ *   ESC                Save & exit
  */
 public class Main {
 
@@ -29,11 +28,13 @@ public class Main {
     private static final String DATA_FILE        = "sprites.txt";
 
     // ── State ──────────────────────────────────────────────────────────────────
-    private static GameEngine      engine;
-    private static BottomRockLayer bottomLayer;
-    private static Rock            currentRock;
-    private static int             currentDepth = 0;   // 0 = bg, 1 = fg
-    private static boolean         mouseWasDown = false;
+    private static GameEngine       engine;
+    private static BottomRockLayer  bottomLayer;
+    private static Rock             selectedRock;
+    private static Slider.Mode      editMode = Slider.Mode.TRANSLATE;
+    private static int              currentDepth = 0;   // 0 = bg, 1 = fg
+    private static boolean          mouseWasDown = false;
+    private static float            lastMouseX, lastMouseY;
 
     static Water    watergradient;
     static EngineUI UI;
@@ -72,65 +73,108 @@ public class Main {
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN))  engine.panCamera(  0,-10);
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_O))     engine.setCamera(  0,-10);
 
+        // Editing mode selection
+        if (StdDraw.isKeyPressed('1')) {
+            editMode = Slider.Mode.TRANSLATE;
+            System.out.println("Mode: TRANSLATE");
+            StdDraw.pause(200);
+        }
+        if (StdDraw.isKeyPressed('2')) {
+            editMode = Slider.Mode.ROTATE;
+            System.out.println("Mode: ROTATE");
+            StdDraw.pause(200);
+        }
+        if (StdDraw.isKeyPressed('3')) {
+            editMode = Slider.Mode.SCALE;
+            System.out.println("Mode: SCALE");
+            StdDraw.pause(200);
+        }
+
         if (StdDraw.isKeyPressed(' ')) {
             currentDepth = 1 - currentDepth;
+            if (selectedRock != null) selectedRock.setDepth(currentDepth);
             System.out.println("Layer: " + (currentDepth == 0 ? "Background" : "Foreground"));
             StdDraw.pause(200);
         }
 
         if (StdDraw.isKeyPressed('D') || StdDraw.isKeyPressed('d')) {
             engine.deleteSprite(worldMouseX(), worldMouseY());
+            selectedRock = null;
             StdDraw.pause(200);
         }
 
         if (StdDraw.isKeyPressed('C') || StdDraw.isKeyPressed('c')) {
             engine.clearAll();
-            currentRock = null;
+            selectedRock = null;
             StdDraw.pause(200);
         }
 
-        if (StdDraw.isKeyPressed('U') || StdDraw.isKeyPressed('u')) {
-            if (currentRock != null) {
-                currentRock.removeLastVertex();
-                System.out.println("Undo — " + currentRock.getVertexCount() + " vertices");
-            }
+        if (StdDraw.isKeyPressed('N') || StdDraw.isKeyPressed('n')) {
+            Rock newRock = new Rock(worldMouseX(), worldMouseY(), currentDepth);
+            engine.addRock(newRock);
+            selectedRock = newRock;
+            System.out.printf("Created rock at (%.0f, %.0f)%n", worldMouseX(), worldMouseY());
             StdDraw.pause(200);
         }
 
         if (StdDraw.isKeyPressed('S') || StdDraw.isKeyPressed('s')) {
             engine.saveSprites();
+            System.out.println("Saved!");
             StdDraw.pause(200);
         }
 
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
-            if (currentRock != null) {
-                currentRock.closePath();
-                engine.addRock(currentRock);
-                currentRock = null;
-            }
             engine.saveSprites();
             System.out.println("Goodbye.");
             System.exit(0);
         }
 
         boolean mouseDown = StdDraw.isMousePressed();
-        if (mouseDown && !mouseWasDown) {
-            boolean shift = StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_SHIFT);
-            float wx = worldMouseX(), wy = worldMouseY();
+        float mouseX = worldMouseX();
+        float mouseY = worldMouseY();
 
-            if (currentRock == null) {
-                currentRock = engine.createRock(wx, wy, currentDepth);
-                System.out.printf("Started rock at (%.0f, %.0f)%n", wx, wy);
-            } else if (shift) {
-                currentRock.closePath();
-                engine.addRock(currentRock);
-                System.out.println("Finished rock — " + currentRock.getVertexCount() + " vertices");
-                currentRock = null;
+        if (mouseDown && !mouseWasDown) {
+            // Click: select rock
+            Sprite sprite = engine.getSpriteAt(mouseX, mouseY);
+            if (sprite instanceof Rock) {
+                selectedRock = (Rock) sprite;
+                currentDepth = selectedRock.getDepth();
+                System.out.println("Selected: " + selectedRock);
             } else {
-                currentRock.addVertex(wx, wy);
-                System.out.println("Vertex added — total: " + currentRock.getVertexCount());
+                selectedRock = null;
             }
+            lastMouseX = mouseX;
+            lastMouseY = mouseY;
+        } else if (mouseDown && mouseWasDown && selectedRock != null) {
+            // Drag: transform selected rock
+            float deltaX = mouseX - lastMouseX;
+            float deltaY = mouseY - lastMouseY;
+
+            switch (editMode) {
+                case TRANSLATE:
+                    selectedRock.setPosition(selectedRock.getX() + deltaX, 
+                                             selectedRock.getY() + deltaY);
+                    break;
+                case ROTATE:
+                    float rockScreenX = (float) engine.worldToScreenX(selectedRock.getX());
+                    float rockScreenY = (float) engine.worldToScreenY(selectedRock.getY());
+                    float currentAngle = (float) Math.atan2(StdDraw.mouseY() - rockScreenY, 
+                                                            StdDraw.mouseX() - rockScreenX);
+                    float lastAngle = (float) Math.atan2(lastMouseY - rockScreenY, 
+                                                         lastMouseX - rockScreenX);
+                    float deltaRotation = (float) Math.toDegrees(currentAngle - lastAngle);
+                    selectedRock.addRotation(deltaRotation);
+                    break;
+                case SCALE:
+                    float scaleXDelta = 1.0f + deltaX * 0.01f;
+                    float scaleYDelta = 1.0f - deltaY * 0.01f;
+                    selectedRock.multiplyScale(scaleXDelta, scaleYDelta);
+                    break;
+            }
+            lastMouseX = mouseX;
+            lastMouseY = mouseY;
         }
+
         mouseWasDown = mouseDown;
     }
 
@@ -151,7 +195,7 @@ public class Main {
                 s.draw(engine);
         }
 
-        // Non-rock sprites
+        // Non-rock sprites (sliders, etc)
         for (Sprite s : engine.getSprites()) {
             if (!(s instanceof Rock))
                 s.draw(engine);
@@ -159,44 +203,43 @@ public class Main {
 
         bottomLayer.draw(engine);
 
-        if (currentRock != null) drawRockPreview(currentRock);
+        // Highlight selected rock with mode-specific UI
+        if (selectedRock != null) {
+            double screenX = engine.worldToScreenX(selectedRock.getX());
+            double screenY = engine.worldToScreenY(selectedRock.getY());
+            float[] bounds = selectedRock.getBounds();
+            
+            double halfWidth = Math.abs(engine.worldToScreenX(bounds[1]) - engine.worldToScreenX(bounds[0])) / 2;
+            double halfHeight = Math.abs(engine.worldToScreenY(bounds[2]) - engine.worldToScreenY(bounds[3])) / 2;
+            double maxRadius = Math.max(halfWidth, halfHeight) * 1.3;
 
-        UI.drawUI(currentRock, currentDepth, METERS_PER_PIXEL);
+            if (editMode == Slider.Mode.ROTATE) {
+                StdDraw.setPenColor(255, 150, 100);
+                StdDraw.setPenRadius(0.004);
+                StdDraw.circle(screenX, screenY, maxRadius);
+            } else if (editMode == Slider.Mode.SCALE) {
+                StdDraw.setPenColor(150, 255, 100);
+                StdDraw.setPenRadius(0.004);
+                StdDraw.line(screenX - maxRadius * 1.2, screenY, screenX + maxRadius * 1.2, screenY);
+                StdDraw.line(screenX, screenY - maxRadius * 1.2, screenX, screenY + maxRadius * 1.2);
+                StdDraw.setPenRadius(0.006);
+                StdDraw.point(screenX, screenY);
+            } else {
+                StdDraw.setPenColor(100, 200, 255);
+                StdDraw.setPenRadius(0.004);
+                StdDraw.rectangle(screenX, screenY, halfWidth, halfHeight);
+            }
+        }
+
+        UI.drawUI(null, currentDepth, METERS_PER_PIXEL);
+        drawModeIndicator();
     }
 
-    // ── Rock preview ───────────────────────────────────────────────────────────
-
-    private static void drawRockPreview(Rock rock) {
-        List<Float> verts = rock.getVertices();
-        int vc = verts.size() / 2;
-        if (vc == 0) return;
-
-        StdDraw.setPenColor(255, 210, 80);
-        StdDraw.setPenRadius(0.012);
-        for (int i = 0; i < vc; i++) {
-            StdDraw.point(engine.worldToScreenX(verts.get(i * 2)),
-                          engine.worldToScreenY(verts.get(i * 2 + 1)));
-        }
-
-        StdDraw.setPenColor(180, 255, 120);
-        StdDraw.setPenRadius(0.003);
-        for (int i = 0; i < vc - 1; i++) {
-            StdDraw.line(engine.worldToScreenX(verts.get(i * 2)),
-                         engine.worldToScreenY(verts.get(i * 2 + 1)),
-                         engine.worldToScreenX(verts.get((i + 1) * 2)),
-                         engine.worldToScreenY(verts.get((i + 1) * 2 + 1)));
-        }
-
-        StdDraw.setPenColor(120, 180, 255);
-        StdDraw.setPenRadius(0.002);
-        StdDraw.line(engine.worldToScreenX(verts.get((vc - 1) * 2)),
-                     engine.worldToScreenY(verts.get((vc - 1) * 2 + 1)),
-                     StdDraw.mouseX(), StdDraw.mouseY());
-
-        StdDraw.setPenColor(255, 255, 200);
-        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
-        StdDraw.textLeft(10, 55, "Shift+Click to close shape");
-        StdDraw.setPenRadius(0.002);
+    private static void drawModeIndicator() {
+        StdDraw.setPenColor(255, 255, 255);
+        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 14));
+        StdDraw.textLeft(10, 30, "Mode: " + editMode + " (1/2/3 to change)");
+        StdDraw.textLeft(10, 50, "N=New Rock, S=Save, D=Delete, C=Clear");
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -205,12 +248,13 @@ public class Main {
     private static float worldMouseY() { return engine.screenToWorldY(StdDraw.mouseY()); }
 
     private static void printHelp() {
-        System.out.println("=== Submarine Game Editor ===");
-        System.out.println("  Click           → add vertex");
-        System.out.println("  Shift+Click     → finish / close rock");
+        System.out.println("=== Submarine Game Editor (Image-Based) ===");
+        System.out.println("  Click           → select rock");
+        System.out.println("  Drag            → transform (translate/rotate/scale)");
+        System.out.println("  1/2/3           → change mode (translate/rotate/scale)");
         System.out.println("  Arrow Keys      → scroll camera");
         System.out.println("  Space           → toggle layer (bg / fg)");
-        System.out.println("  U               → undo last vertex");
+        System.out.println("  N               → create new rock");
         System.out.println("  D               → delete sprite under cursor");
         System.out.println("  C               → clear all sprites");
         System.out.println("  S               → save");

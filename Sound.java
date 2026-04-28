@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -21,7 +20,7 @@ public class Sound {
 
     // ── Constants ──────────────────────────────────────────────────────────────
     /** How fast a one-shot sound decays per tick (fraction of strength lost). */
-    public static final float DECAY_RATE     = 0.015f;
+    public static float DECAY_RATE     = 0.015f;
 
     /** Sound is considered dead below this threshold. */
     public static final float DEAD_THRESHOLD = 0.5f;
@@ -30,7 +29,7 @@ public class Sound {
      * Acoustic falloff: perceived = strength / (1 + dist² * FALLOFF).
      * Smaller = sounds carry farther.
      */
-    public static final float FALLOFF        = 0.00005f;
+    public static final float FALLOFF        = 0.000005f;
 
     // ── Fields ─────────────────────────────────────────────────────────────────
     protected float  x;

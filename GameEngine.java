@@ -51,10 +51,12 @@ public class GameEngine {
         String[] parts = line.trim().split("\\s+");
         if (parts.length == 0) return null;
         switch (parts[0]) {
-            // "POLYGON" kept for backwards-compatibility with old save files
+            // "POLYGON" and "ROCK" kept for backwards-compatibility with old save files
             case "POLYGON":
-            case "ROCK": return Rock.deserialize(line);
-            default:     return null;
+            case "ROCK":
+            case "IMAGEROCK": return Rock.deserialize(line);
+            case "SLIDER":    return Slider.deserialize(line);
+            default:          return null;
         }
     }
 

@@ -30,12 +30,12 @@ public class PassiveSonar {
     /** Max amplitude of the wave in pixels (at full intensity). */
     private static final double MAX_AMP      = 32.0;
     /** Intensity at which the wave is at maximum amplitude. */
-    private static final float  MAX_INTENSITY = 800f;
+    private static final float  MAX_INTENSITY = 3000f;
     /** Number of sine harmonics layered to make the wave look organic. */
     private static final int    HARMONICS    = 4;
 
     // ── History buffer — smooth the intensity over several frames ──────────────
-    private static final int    HISTORY      = 12;
+    private static final int    HISTORY      = 24;
     private static final float[] intensityBuf = new float[HISTORY];
     private static int           bufHead      = 0;
 
@@ -105,7 +105,7 @@ public class PassiveSonar {
         // ── Build waveform points ──────────────────────────────────────────────
         double[] wx = new double[WAVE_POINTS];
         double[] wy = new double[WAVE_POINTS];
-        double phase = tick * 0.07;   // animation speed
+        double phase = tick * 0.25;   // animation speed
 
         for (int i = 0; i < WAVE_POINTS; i++) {
             double t = (double) i / (WAVE_POINTS - 1);
