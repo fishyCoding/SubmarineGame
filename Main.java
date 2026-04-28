@@ -12,6 +12,7 @@
  *   D                  Delete sprite under cursor
  *   C                  Clear all sprites
  *   S                  Save
+ *   V                  Duplicate selected rock
  *   N                  Create new rock at cursor
  *   ESC                Save & exit
  */
@@ -113,6 +114,26 @@ public class Main {
             engine.addRock(newRock);
             selectedRock = newRock;
             System.out.printf("Created rock at (%.0f, %.0f)%n", worldMouseX(), worldMouseY());
+            StdDraw.pause(200);
+        }
+
+        if (StdDraw.isKeyPressed('V') || StdDraw.isKeyPressed('v')) {
+            if (selectedRock != null) {
+                // Duplicate with a small offset so it doesn't sit exactly on top
+                Rock dupe = new Rock(
+                        selectedRock.getX() + 20f,
+                        selectedRock.getY() - 20f,
+                        selectedRock.getRotation(),
+                        selectedRock.getScaleX(),
+                        selectedRock.getScaleY(),
+                        selectedRock.getDepth());
+                dupe.setColor(selectedRock.getR(), selectedRock.getG(), selectedRock.getB());
+                engine.addRock(dupe);
+                selectedRock = dupe;   // auto-select the new copy
+                System.out.println("Duplicated: " + dupe);
+            } else {
+                System.out.println("V: nothing selected to duplicate.");
+            }
             StdDraw.pause(200);
         }
 
@@ -250,7 +271,7 @@ public class Main {
         StdDraw.setPenColor(255, 255, 255);
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 14));
         StdDraw.textLeft(10, 30, "Mode: " + editMode + " (1/2/3 to change)");
-        StdDraw.textLeft(10, 50, "N=New Rock, S=Save, D=Delete, C=Clear");
+        StdDraw.textLeft(10, 50, "N=New Rock, V=Duplicate, S=Save, D=Delete, C=Clear");
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -265,6 +286,7 @@ public class Main {
         System.out.println("  1/2/3           → change mode (translate/rotate/scale)");
         System.out.println("  Arrow Keys      → scroll camera");
         System.out.println("  Space           → toggle layer (bg / fg)");
+        System.out.println("  V               → duplicate selected rock");
         System.out.println("  N               → create new rock");
         System.out.println("  D               → delete sprite under cursor");
         System.out.println("  C               → clear all sprites");
