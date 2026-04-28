@@ -1,3 +1,5 @@
+//Draws the background water
+
 public class Water{    
     private static float SURFACE_LEVEL;
     private static int HEIGHT;
@@ -10,37 +12,50 @@ public class Water{
         this.SURFACE_LEVEL = SURFACE_LEVEL;
         this.engine = engine;
     }
+
+    //Basic math functions to keep values in between 0 and 255 for colors (int values) and 1 for floats
+
     private static float clampF(float v) { 
-        return Math.max(0f, Math.min(1f, v)); 
+        return Math.max(0f,Math.min(1f,v)); 
     }
 
     private static int   clampC(int v) { 
-        return Math.max(0, Math.min(255, v)); 
+        return Math.max(0,Math.min(255,v)); 
     }
 
+    //Draws the water gradient by creating horizontal strips and coloring them based on their depth, with a line at the surface level
     public void drawWaterGradient() {
-        int    strips = 160;
+        int strips = 160;
         double surfaceScreenY = engine.worldToScreenY(SURFACE_LEVEL);
 
+        // Draw horizontal strips with color based on depth
         for (int i = 0; i < strips; i++) {
-            double sy1 = i       * (HEIGHT / (double) strips);
-            double sy2 = (i + 1) * (HEIGHT / (double) strips);
-            double wy1 = sy1 + engine.getCameraY();
-            double wy2 = sy2 + engine.getCameraY();
+            
+            // Calculate the world Y coordinates of the top and bottom of the strip
+            double sy1 = i*(HEIGHT / (double) strips);
+            double sy2 = (i+1)*(HEIGHT/ (double) strips);
+            double wy1=sy1+engine.getCameraY();
+            double wy2=sy2+engine.getCameraY();
 
-            int r, g, b;
+            //color valus
+            int r,g,b;
 
+            /*floats t: 0 at surface, 1 at max depth
+             d*/
             if (sy1 >= surfaceScreenY) {
-                // Sky
+                // If the strip is entierly above the sky
                 float t = clampF((float) ((wy1 - SURFACE_LEVEL) / 500.0));
                 r = clampC((int) (200 + 30 * t));
                 g = clampC((int) (228 + 15 * t));
                 b = 255;
             } else if (sy2 <= surfaceScreenY) {
-                // Water — deep teal darkening toward black
-                float d1 = Math.max(0f, (float) (SURFACE_LEVEL - wy1));
+                // Completaly underwater strip
+
+                float d1=Math.max(0f, (float) (SURFACE_LEVEL - wy1));
                 float d2 = Math.max(0f, (float) (SURFACE_LEVEL - wy2));
                 float t  = clampF(((d1 + d2) / 2f) / 1800f);
+
+                //clamp to ensure values are between 0 and 255
                 r = clampC((int) (42  - 28 * t));
                 g = clampC((int) (68  - 45 * t));
                 b = clampC((int) (102 - 60 * t));
@@ -64,8 +79,8 @@ public class Water{
             StdDraw.filledRectangle(WIDTH / 2.0, (sy1 + sy2) / 2.0, WIDTH / 2.0, (sy2 - sy1) / 2.0);
         }
 
-        // Surface line
-        if (surfaceScreenY > 0 && surfaceScreenY < HEIGHT) {
+        //if surface level is visible based on current height
+        if (surfaceScreenY>0 && surfaceScreenY<HEIGHT) {
             StdDraw.setPenColor(150, 210, 255);
             StdDraw.setPenRadius(0.003);
             StdDraw.line(0, surfaceScreenY, WIDTH, surfaceScreenY);
