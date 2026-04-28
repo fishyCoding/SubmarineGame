@@ -197,35 +197,23 @@ public class Rock extends Sprite {
         double screenX = engine.worldToScreenX(x);
         double screenY = engine.worldToScreenY(y);
 
-        // Use StdDraw's own AffineTransform to convert from StdDraw coordinate
-        // space (origin bottom-left, Y up) to Java2D pixel space (origin top-left,
-        // Y down). This is the only reliable way — reading the transform StdDraw
-        // actually set on its offscreen canvas, so we never have to guess scaling.
+        // StdDraw uses setXscale(0,WIDTH) / setYscale(0,HEIGHT) / setCanvasSize(WIDTH,HEIGHT)
+        // so StdDraw units == canvas pixels exactly. The only conversion needed is
+        // a Y-flip: StdDraw Y=0 is bottom, Java2D Y=0 is top.
+        // screenX/Y from worldToScreen are already in StdDraw units — no camera
+        // offset needed here, the engine already subtracted cameraX/Y.
         try {
-            // Get offscreen canvas
             java.lang.reflect.Field offscreenField =
                     StdDraw.class.getDeclaredField("offscreenImage");
             offscreenField.setAccessible(true);
             BufferedImage canvas = (BufferedImage) offscreenField.get(null);
 
-            // Get the Graphics2D StdDraw uses so we inherit its transform
-            java.lang.reflect.Field g2dField =
-                    StdDraw.class.getDeclaredField("offscreen");
-            g2dField.setAccessible(true);
-            Graphics2D stdG = (Graphics2D) g2dField.get(null);
+            int canvasH = canvas.getHeight();
 
-            // Transform our StdDraw-space centre point to pixel space
-            java.awt.geom.Point2D.Double src =
-                    new java.awt.geom.Point2D.Double(screenX, screenY);
-            java.awt.geom.Point2D.Double dst =
-                    new java.awt.geom.Point2D.Double();
-            stdG.getTransform().transform(src, dst);
+            // Convert StdDraw centre → Java2D pixel top-left corner of image
+            int drawX = (int) Math.round(screenX - rotatedCache.getWidth()  / 2.0);
+            int drawY = (int) Math.round((canvasH - screenY) - rotatedCache.getHeight() / 2.0);
 
-            int drawX = (int) Math.round(dst.x - rotatedCache.getWidth()  / 2.0);
-            int drawY = (int) Math.round(dst.y - rotatedCache.getHeight() / 2.0);
-
-            // Draw directly onto the raw canvas (no transform applied — image
-            // is already pre-rotated and pre-scaled in pixel space)
             Graphics2D g = canvas.createGraphics();
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
