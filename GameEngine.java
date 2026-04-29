@@ -55,7 +55,6 @@ public class GameEngine {
             case "POLYGON":
             case "ROCK":
             case "IMAGEROCK": return Rock.deserialize(line);
-            case "SLIDER":    return Slider.deserialize(line);
             default:          return null;
         }
     }

@@ -6,7 +6,6 @@ public class HUD {
     // The visible oval half-axes (pixels).  World beyond this is hidden.
     private static final double FOG_HALF_W    = 300.0;
     private static final double FOG_HALF_H    = 200.0;
-    // How many feather rings to blend the edge over (more = smoother fade)
     private static final int    FOG_RINGS     = 40;   
         public static void drawFog(int HEIGHT, int WIDTH, double CX, double CY) {
         // ── 1. Calculate the bounds of the "hole" ─────────────────────────────

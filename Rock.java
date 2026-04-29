@@ -1,285 +1,198 @@
 import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import javax.imageio.ImageIO;
+import java.util.*;
 
 /**
- * Rock — an image-based sprite with rotation and scale transforms.
- *
- * Performance strategy:
- *   1. SOURCE CACHE (static)  — each PNG is loaded from disk exactly once.
- *   2. ROTATED CACHE (per-instance) — the rotated+scaled BufferedImage is
- *      pre-rendered into a per-rock BufferedImage and only recalculated when
- *      rotation or scale actually changes (i.e. during editor drag, never
- *      during normal gameplay). Drawing becomes a single Graphics2D.drawImage()
- *      call with no per-frame transform math.
+ * Rock — simple polygon-based terrain sprite.
+ * Stores vertices and renders as a filled polygon.
  */
 public class Rock extends Sprite {
 
-    // ── Static source cache ────────────────────────────────────────────────────
-    private static final String IMAGE_PATH      = "rock1.png";
-    private static final String IMAGE_PATH_DARK = "rock1dark.png";
+    private final List<Float> vertices;
+    private int depth;
 
-    private static final Map<String, BufferedImage> SOURCE_CACHE = new HashMap<>();
-
-    static {
-        loadAndCache(IMAGE_PATH);
-        loadAndCache(IMAGE_PATH_DARK);
-    }
-
-    private static void loadAndCache(String path) {
-        try {
-            File f = new File(path);
-            if (f.exists()) {
-                SOURCE_CACHE.put(path, toARGB(ImageIO.read(f)));
-                System.out.println("Cached image: " + path);
-            } else {
-                System.err.println("Warning: " + path + " not found — using placeholder");
-                SOURCE_CACHE.put(path, new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB));
-            }
-        } catch (Exception e) {
-            System.err.println("Error loading " + path + ": " + e.getMessage());
-            SOURCE_CACHE.put(path, new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB));
-        }
-    }
-
-    /** Ensures the image is TYPE_INT_ARGB so Graphics2D compositing works correctly. */
-    private static BufferedImage toARGB(BufferedImage src) {
-        if (src.getType() == BufferedImage.TYPE_INT_ARGB) return src;
-        BufferedImage out = new BufferedImage(src.getWidth(), src.getHeight(),
-                                             BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = out.createGraphics();
-        g.drawImage(src, 0, 0, null);
-        g.dispose();
-        return out;
-    }
-
-    private static BufferedImage source(String path) {
-        BufferedImage img = SOURCE_CACHE.get(path);
-        return (img != null) ? img : SOURCE_CACHE.get(IMAGE_PATH);
-    }
-
-    // ── Instance properties ────────────────────────────────────────────────────
-    private float rotation;
-    private float scaleX;
-    private float scaleY;
-    private int   depth;
-
-    // ── Per-instance rotated image cache ──────────────────────────────────────
-    // Rebuilt only when rotation, scale, or depth changes — never every frame.
-    private BufferedImage rotatedCache;
-    private float         cachedRotation = Float.NaN;
-    private float         cachedScaleX   = Float.NaN;
-    private float         cachedScaleY   = Float.NaN;
-    private int           cachedDepth    = -1;
-
-    // ── Constructors ───────────────────────────────────────────────────────────
+    private static final Color BG_BASE   = Color.decode("#372f42");
+    private static final Color BG_SHADOW = Color.decode("#1a1620");
+    private static final Color FG_BASE   = Color.decode("#524a5a");
+    private static final Color FG_SHADOW = Color.decode("#2a2230");
+ 
 
     public Rock(float x, float y, int depth) {
-        super(x, y, new Color(170, 170, 170));
-        this.rotation = 0;
-        this.scaleX   = 1.0f;
-        this.scaleY   = 1.0f;
-        this.depth    = Math.max(0, Math.min(1, depth));
+        super(x, y, Color.GRAY);
+        this.vertices = new ArrayList<>();
+        this.depth = Math.max(0, Math.min(1, depth));
+        this.vertices.add(0f);
+        this.vertices.add(0f);
     }
 
-    public Rock(float x, float y, float rotation, float scaleX, float scaleY, int depth) {
-        super(x, y, new Color(170, 170, 170));
-        this.rotation = rotation % 360;
-        this.scaleX   = Math.max(0.1f, scaleX);
-        this.scaleY   = Math.max(0.1f, scaleY);
-        this.depth    = Math.max(0, Math.min(1, depth));
-    }
 
-    // ── Transform properties ───────────────────────────────────────────────────
 
-    public void setRotation(float r)   { this.rotation = r % 360; }
-    public void addRotation(float d)   { this.rotation = (rotation + d) % 360; }
-    public float getRotation()         { return rotation; }
-
-    public void setScale(float sx, float sy) {
-        this.scaleX = Math.max(0.1f, sx);
-        this.scaleY = Math.max(0.1f, sy);
-    }
-
-    public void multiplyScale(float sx, float sy) {
-        this.scaleX = Math.max(0.1f, scaleX * sx);
-        this.scaleY = Math.max(0.1f, scaleY * sy);
-    }
-
-    public float getScaleX() { return scaleX; }
-    public float getScaleY() { return scaleY; }
-
-    public int  getDepth()      { return depth; }
-    public void setDepth(int d) { this.depth = Math.max(0, Math.min(1, d)); }
-
-    // ── Rotated cache builder ─────────────────────────────────────────────────
-
-    /**
-     * Rebuilds rotatedCache only when something actually changed.
-     * During gameplay nothing changes, so this never runs after load.
-     * During editor drag it runs once per drag tick for the selected rock only.
-     */
-    private void rebuildCacheIfNeeded() {
-        if (rotation == cachedRotation
-                && scaleX  == cachedScaleX
-                && scaleY  == cachedScaleY
-                && depth   == cachedDepth
-                && rotatedCache != null) {
-            return; // nothing changed — reuse existing cache
+    public float[]getBounds() {
+        float minX = Float.MAX_VALUE, maxX = Float.MIN_VALUE;
+        float minY = Float.MAX_VALUE, maxY = Float.MIN_VALUE;
+        for (int i = 0; i < vertices.size(); i += 2) {
+            float vx = vertices.get(i) + getX();
+            float vy = vertices.get(i + 1) + getY();
+            minX = Math.min(minX, vx);
+            maxX = Math.max(maxX, vx);
+            minY = Math.min(minY, vy);
+            maxY = Math.max(maxY, vy);
         }
-
-        String        srcPath = (depth == 0) ? IMAGE_PATH_DARK : IMAGE_PATH;
-        BufferedImage src     = source(srcPath);
-
-        int srcW = src.getWidth();
-        int srcH = src.getHeight();
-
-        // Scaled dimensions
-        int dstW = Math.max(1, (int) Math.abs(srcW * scaleX));
-        int dstH = Math.max(1, (int) Math.abs(srcH * scaleY));
-
-        // After rotation the bounding box grows — compute its size
-        double rad  = Math.toRadians(rotation);
-        double cos  = Math.abs(Math.cos(rad));
-        double sin  = Math.abs(Math.sin(rad));
-        int    outW = (int) Math.ceil(dstW * cos + dstH * sin);
-        int    outH = (int) Math.ceil(dstW * sin + dstH * cos);
-
-        rotatedCache = new BufferedImage(outW, outH, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = rotatedCache.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                           RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                           RenderingHints.VALUE_ANTIALIAS_ON);
-
-        // Translate to centre, rotate, translate back, then draw scaled source
-        g.translate(outW / 2.0, outH / 2.0);
-        g.rotate(Math.toRadians(rotation));
-        g.drawImage(src, -dstW / 2, -dstH / 2, dstW, dstH, null);
-        g.dispose();
-
-        cachedRotation = rotation;
-        cachedScaleX   = scaleX;
-        cachedScaleY   = scaleY;
-        cachedDepth    = depth;
+        return new float[]{minX, maxX, minY, maxY};
     }
 
-    // ── Collision ──────────────────────────────────────────────────────────────
+    public void addVertex(float x, float y) {
+        //adds verts as offsets, not abs pos
+        this.vertices.add(x-getX());
+        this.vertices.add(y-getY());
+    }
 
-    public float[] getBounds() {
-        BufferedImage img = source(IMAGE_PATH);
-        float halfW = img.getWidth()  * scaleX / 2;
-        float halfH = img.getHeight() * scaleY / 2;
-        return new float[]{ x - halfW, x + halfW, y - halfH, y + halfH };
+    public void removeLastVertex() {
+        if (this.vertices.size() >= 4) {
+            this.vertices.remove(this.vertices.size() - 1);
+            this.vertices.remove(this.vertices.size() - 1);
+        }
+    }
+
+    public int getVertexCount() {
+        //1/2ed bc verts are stored as x,y pairs in a single list
+        return this.vertices.size() / 2;
+    }
+    public List<Float> getVertices() {
+        return this.vertices;
+    }
+
+    public int getDepth() {
+        return this.depth;
+    }
+
+    public void setDepth(int d) {
+        this.depth = Math.max(0, Math.min(1, d));
     }
 
     @Override
     public boolean contains(float px, float py) {
-        BufferedImage img = source(IMAGE_PATH);
-        float dx     = px - x;
-        float dy     = py - y;
-        float radius = Math.max(img.getWidth() * scaleX, img.getHeight() * scaleY) / 2;
-        return dx * dx + dy * dy <= radius * radius;
-    }
+        if (this.vertices.size() < 6) return false;
+        int count = this.vertices.size() / 2;
+        boolean inside = false;
 
-    // ── Rendering ──────────────────────────────────────────────────────────────
+        //I searched this one up, its just a basic way to see if a point (mouse click) is inside the list of pts
+        //make sure it accounts for pos offest
+        for (int i = 0, j = count - 1; i < count; j = i++) {
+            float xi = this.vertices.get(i * 2)+this.getX(), yi = this.vertices.get(i * 2 + 1)+this.getY();
+            float xj = this.vertices.get(j * 2)+this.getX(), yj = this.vertices.get(j * 2 + 1)+this.getY();
+            if ((yi > py) != (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi)
+                inside = !inside;
+        }
+        return inside;
+    }
 
     @Override
     public void draw(GameEngine engine) {
-        rebuildCacheIfNeeded();
-
-        double screenX = engine.worldToScreenX(x);
-        double screenY = engine.worldToScreenY(y);
-
-        // Use StdDraw's own AffineTransform to convert from StdDraw coordinate
-        // space (origin bottom-left, Y up) to Java2D pixel space (origin top-left,
-        // Y down). This is the only reliable way — reading the transform StdDraw
-        // actually set on its offscreen canvas, so we never have to guess scaling.
-        try {
-            // Get offscreen canvas
-            java.lang.reflect.Field offscreenField =
-                    StdDraw.class.getDeclaredField("offscreenImage");
-            offscreenField.setAccessible(true);
-            BufferedImage canvas = (BufferedImage) offscreenField.get(null);
-
-            // Get the Graphics2D StdDraw uses so we inherit its transform
-            java.lang.reflect.Field g2dField =
-                    StdDraw.class.getDeclaredField("offscreen");
-            g2dField.setAccessible(true);
-            Graphics2D stdG = (Graphics2D) g2dField.get(null);
-
-            // Transform our StdDraw-space centre point to pixel space
-            java.awt.geom.Point2D.Double src =
-                    new java.awt.geom.Point2D.Double(screenX, screenY);
-            java.awt.geom.Point2D.Double dst =
-                    new java.awt.geom.Point2D.Double();
-            stdG.getTransform().transform(src, dst);
-
-            int drawX = (int) Math.round(dst.x - rotatedCache.getWidth()  / 2.0);
-            int drawY = (int) Math.round(dst.y - rotatedCache.getHeight() / 2.0);
-
-            // Draw directly onto the raw canvas (no transform applied — image
-            // is already pre-rotated and pre-scaled in pixel space)
-            Graphics2D g = canvas.createGraphics();
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                               RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.drawImage(rotatedCache, drawX, drawY, null);
-            g.dispose();
-
-        } catch (Exception e) {
-            // Reflection unavailable — fall back to StdDraw.picture()
-            String path = (depth == 0) ? IMAGE_PATH_DARK : IMAGE_PATH;
-            BufferedImage img = source(path);
-            double screenW = Math.max(Math.abs(img.getWidth()  * scaleX), 1.0);
-            double screenH = Math.max(Math.abs(img.getHeight() * scaleY), 1.0);
-            StdDraw.picture(screenX, screenY, path, screenW, screenH, rotation);
+        
+        
+        //verts are stored as offsets from the rock's x,y pos
+        double[] screenXs = new double[this.vertices.size() / 2];
+        double[] screenYs = new double[this.vertices.size() / 2];
+        for (int i = 0; i < this.vertices.size(); i += 2) {
+            int idx = i / 2;
+            // convert ot wrld coords
+            screenXs[idx] = engine.worldToScreenX(this.vertices.get(i) + this.getX());
+            screenYs[idx] = engine.worldToScreenY(this.vertices.get(i + 1) + this.getY());
         }
+
+        // Shadow outline
+        Color shadowColor = this.depth == 0 ? BG_SHADOW : FG_SHADOW;
+        StdDraw.setPenColor(shadowColor);
+        double[] shadowXs = new double[screenXs.length];
+        double[] shadowYs = new double[screenYs.length];
+        for (int i = 0; i < screenXs.length; i++) {
+            shadowXs[i] = screenXs[i] + 3;
+            shadowYs[i] = screenYs[i] - 2;
+        }
+        StdDraw.filledPolygon(shadowXs, shadowYs);
+
+        // Fill
+        Color baseColor = this.depth == 0 ? BG_BASE : FG_BASE;
+        StdDraw.setPenColor(baseColor);
+        StdDraw.filledPolygon(screenXs, screenYs);
+
+        // Outline
+        StdDraw.setPenColor(50, 50, 50);
+        StdDraw.setPenRadius(0.002);
+        StdDraw.polygon(screenXs, screenYs);
     }
-
-    // ── Serialization ──────────────────────────────────────────────────────────
-
     @Override
     public String serialize() {
-        return String.format("IMAGEROCK %d %.1f %.1f %.1f %.2f %.2f %d %d %d",
-                depth, x, y, rotation, scaleX, scaleY, getR(), getG(), getB());
+        StringBuilder sb = new StringBuilder();
+        
+        // Protocol: ROCK [x] [y] [depth] [vertexCount] [vertices...] [r] [g] [b]
+        sb.append("ROCK ")
+          .append(getX()).append(" ")
+          .append(getY()).append(" ")
+          .append(depth).append(" ")
+          .append(this.vertices.size() / 2);
+          
+        for (Float v : this.vertices) {
+            sb.append(" ").append(String.format("%.1f", v));
+        }
+        
+        sb.append(" ").append(color.getRed())
+          .append(" ").append(color.getGreen())
+          .append(" ").append(color.getBlue());
+          
+        return sb.toString();
     }
 
     public static Rock deserialize(String line) {
         try {
-            String[] p = line.trim().split("\\s+");
-            if (p[0].equals("ROCK")) return null;
-            if (p.length < 10)       return null;
+            String[] parts = line.trim().split("\\s+");
+            
+            // Minimum parts: ROCK(0), x(1), y(2), depth(3), vCount(4), r, g, b = 8 items
+            if (parts.length < 8) return null;
 
-            int   depth    = Integer.parseInt(p[1]);
-            float x        = Float.parseFloat(p[2]);
-            float y        = Float.parseFloat(p[3]);
-            float rotation = Float.parseFloat(p[4]);
-            float scaleX   = Float.parseFloat(p[5]);
-            float scaleY   = Float.parseFloat(p[6]);
-            int   r        = Integer.parseInt(p[7]);
-            int   g        = Integer.parseInt(p[8]);
-            int   b        = Integer.parseInt(p[9]);
+            int i = 0;
+            
+            // Handle the "ROCK" prefix
+            if (parts[i].equalsIgnoreCase("ROCK")) {
+                i++;
+            }
 
-            Rock rock = new Rock(x, y, rotation, scaleX, scaleY, depth);
+            // Parse base attributes
+            float x = Float.parseFloat(parts[i++]);
+            float y = Float.parseFloat(parts[i++]);
+            int depth = Integer.parseInt(parts[i++]);
+            int vertexCount = Integer.parseInt(parts[i++]);
+            
+            // Validate remaining length for vertices (2 per count) + 3 color values
+            if (parts.length < i + (vertexCount * 2) + 3) return null;
+
+            Rock rock = new Rock(x, y, depth);
+            rock.vertices.clear();
+
+            // Parse vertices
+            for (int v = 0; v < vertexCount * 2; v++) {
+                rock.vertices.add(Float.parseFloat(parts[i++]));
+            }
+
+            // Parse RGB color
+            int r = Integer.parseInt(parts[i++]);
+            int g = Integer.parseInt(parts[i++]);
+            int b = Integer.parseInt(parts[i++]);
             rock.setColor(r, g, b);
+
             return rock;
         } catch (Exception e) {
-            System.err.println("Error deserializing rock: " + e.getMessage());
             return null;
         }
-    }
+    } 
 
-    @Override public String getType() { return "IMAGEROCK"; }
+    @Override
+    public String getType() {
+        return "ROCK";
+    }
 
     @Override
     public String toString() {
-        return String.format("Rock(x=%.0f, y=%.0f, rot=%.1f°, scale=%.2f,%.2f, depth=%d)",
-                x, y, rotation, scaleX, scaleY, depth);
+        return String.format("Rock(vertices=%d, depth=%d)", this.vertices.size() / 2, this.depth);
     }
 }

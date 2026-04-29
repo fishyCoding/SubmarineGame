@@ -13,112 +13,112 @@
  */
 public class Submarine extends Character {
 
-    // ── Stats ──────────────────────────────────────────────────────────────────
+    //player state variablees
     private int     maxHealth;
     private int     health;
     private boolean alive;
+    private float rudderAngle = 0f;
 
-    // ── Physics tuning ─────────────────────────────────────────────────────────
+    // Physics constants
     private static final float THRUST_ACCEL     = 0.35f;  // world-units / tick²
     private static final float VERTICAL_ACCEL   = 0.30f;  // Q/E  world-units / tick²
     private static final float DRAG             = 0.04f;
     private static final float VERTICAL_DRAG    = 0.06f;
     private static final float MAX_SPEED        = 6f;
 
-    // Rudder
-    private static final float RUDDER_RATE      = 0.5f;   // degrees deflected per tick while A/D held
-    private static final float RUDDER_RETURN    = 1.5f;   // degrees returned to neutral per tick when released
-    private static final float RUDDER_MAX       = 30f;    // hard clamp (degrees)
-
-    // How strongly the rudder turns the heading — scales with forward speed
-    // so a stationary sub can't spin in place
-    private static final float RUDDER_TURN_GAIN = 0.02f;  // degrees of heading change per degree of rudder per unit speed
-
-    // ── Rudder state ───────────────────────────────────────────────────────────
-    private float rudderAngle = 0f;   // current deflection: + = port/left, - = starboard/right
+    // Rudder constants
+    private static final float RUDDER_RATE      = 0.5f;   // dgs per tick for turning
+    private static final float RUDDER_RETURN    = 1.5f;   // dgs returning to neutral when released
+    private static final float RUDDER_MAX       = 30f;    // max turning angle 
+    private static final float RUDDER_TURN_GAIN = 0.02f;  // degrees of heading change per degree of rudder per unit speed (way too much physics in this project ong)
 
     // ── Visual ─────────────────────────────────────────────────────────────────
     private static final float BODY_HALF_W = 30f;
     private static final float BODY_HALF_H = 12f;
 
-    // ── Constructor ────────────────────────────────────────────────────────────
 
     public Submarine(String id, float x, float y, int maxHealth, String imagePath) {
-        super(id, x, y,
-              /*collisionRadius=*/ 28f,
-              imagePath,
-              /*imageHalfW=*/ BODY_HALF_W,
-              /*imageHalfH=*/ BODY_HALF_H);
-        this.maxHealth = maxHealth;
-        this.health    = maxHealth;
-        this.alive     = true;
+        super(id, x, y, 28f,imagePath, BODY_HALF_W,BODY_HALF_H);
+        this.maxHealth=maxHealth;
+        this.health=maxHealth;
+        this.alive=true;
     }
 
-    // ── Input ──────────────────────────────────────────────────────────────────
-
-    /**
-     * Poll keyboard and queue forces. Call once per tick before update().
-     */
-    public void handleInput() {
-        if (!alive) return;
-
-        // ── Rudder (A/D) — deflect or return to neutral ────────────────────────
-        boolean aHeld = StdDraw.isKeyPressed('A') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT);
-        boolean dHeld = StdDraw.isKeyPressed('D') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT);
-
-        if (aHeld && !dHeld) {
-            rudderAngle = Math.min(rudderAngle + RUDDER_RATE, RUDDER_MAX);
-        } else if (dHeld && !aHeld) {
-            rudderAngle = Math.max(rudderAngle - RUDDER_RATE, -RUDDER_MAX);
-        } else {
-            // Neither or both held — drift back to neutral
-            if (rudderAngle > 0) rudderAngle = Math.max(0, rudderAngle - RUDDER_RETURN);
-            else                 rudderAngle = Math.min(0, rudderAngle + RUDDER_RETURN);
-        }
-
-        // ── Engine (W/S) — thrust along current heading ────────────────────────
-        if (StdDraw.isKeyPressed('W') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_UP)) {
+    private void engineInput(){
+        if (StdDraw.isKeyPressed('W')) {
             double rad = Math.toRadians(angle);
-            vx += (float) (Math.cos(rad) * THRUST_ACCEL);
-            vy += (float) (Math.sin(rad) * THRUST_ACCEL);
+            vx += (float) (Math.cos(rad)*THRUST_ACCEL);
+            vy += (float) (Math.sin(rad)*THRUST_ACCEL);
         }
-        if (StdDraw.isKeyPressed('S') || StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN)) {
+        if (StdDraw.isKeyPressed('S')) {
             double rad = Math.toRadians(angle);
-            vx -= (float) (Math.cos(rad) * THRUST_ACCEL);
-            vy -= (float) (Math.sin(rad) * THRUST_ACCEL);
+            vx -= (float) (Math.cos(rad)*THRUST_ACCEL);
+            vy -= (float) (Math.sin(rad)*THRUST_ACCEL);
         }
 
-        // ── Q/E — vertical, ignores heading and rudder entirely ────────────────
         if (StdDraw.isKeyPressed('Q'))
             vy -= VERTICAL_ACCEL;
         if (StdDraw.isKeyPressed('E'))
             vy += VERTICAL_ACCEL;
 
-        // ── Dev keys ───────────────────────────────────────────────────────────
+    }
+
+    private void handleRudderInput(){
+        boolean aHeld = StdDraw.isKeyPressed('A');
+        boolean dHeld = StdDraw.isKeyPressed('D');
+
+        //turn left
+        if (aHeld && !dHeld) {
+            rudderAngle = Math.min(rudderAngle+ RUDDER_RATE, RUDDER_MAX);
+        } 
+        
+        //turn right
+        else if (dHeld && !aHeld) {
+            rudderAngle = Math.max(rudderAngle-RUDDER_RATE, -RUDDER_MAX);
+        } 
+        
+        else {
+            if (rudderAngle > 0){
+                rudderAngle = Math.max(0, rudderAngle - RUDDER_RETURN);
+            }
+            else{                 
+                rudderAngle = Math.min(0, rudderAngle + RUDDER_RETURN);
+            }
+        }
+    }
+ 
+    public void handleInput() {
+        if (!alive) return;
+
+        //rudder controls
+        handleRudderInput();
+        
+        engineInput();
+
+        //Random testing shit
         if (StdDraw.isKeyPressed('P'))
             takeDamage(50);
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_O))
             respawn(0, -200);
     }
 
-    // ── Update loop ────────────────────────────────────────────────────────────
-
     @Override
     public void update() {
         if (!alive) return;
 
-        // Rudder turns the heading proportional to forward speed and deflection.
-        // No speed = no turn, just like a real boat.
-        float forwardSpeed = (float)(vx * Math.cos(Math.toRadians(angle))
-                                   + vy * Math.sin(Math.toRadians(angle)));
+        //basic trig stuff for getting forward vector
+        float forwardSpeed = (float)(vx * Math.cos(Math.toRadians(angle))+ vy * Math.sin(Math.toRadians(angle)));
         angle += rudderAngle * RUDDER_TURN_GAIN * forwardSpeed;
-        angle  = angle % 360;
+        
+        //just in case if its bigger than 360 yk
+        angle = angle%360;
+
 
         // Drag
-        vx *= (1f - DRAG);
-        vy *= (1f - VERTICAL_DRAG);
+        vx *= (1f-DRAG);
+        vy *= (1f-VERTICAL_DRAG);
 
-        // Speed clamp
+        // Max speed clamp
         float speed = getSpeed();
         if (speed > MAX_SPEED) {
             float scale = MAX_SPEED / speed;
@@ -128,8 +128,6 @@ public class Submarine extends Character {
 
         super.update();
     }
-
-    // ── Health / damage ────────────────────────────────────────────────────────
 
     public void takeDamage(int amount) {
         if (!alive) return;

@@ -1,4 +1,3 @@
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -94,14 +93,7 @@ public class Game {
     private static void setupSounds() {
         engineSound = new EngineSound(player);
         sounds.add(engineSound);
-
-        // Constant ocean static — always audible regardless of position
         sounds.add(new BackgroundSound(player));
-
-        // Test static sound at (1200, -100) — 400 units right of spawn.
-        // Swim toward it to hear the sonar grow, away to watch it fade.
-        sounds.add(new StaticSound(1200f, -100f, 600f, "test_static"));
-        System.out.println("Static test sound placed at (1200, -100) strength=600");
     }
 
     // ── Game loop ──────────────────────────────────────────────────────────────
