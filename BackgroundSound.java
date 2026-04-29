@@ -10,7 +10,7 @@
  */
 public class BackgroundSound extends Sound {
 
-    private static final float AMBIENT_STRENGTH = 30f;
+    private static final float AMBIENT_STRENGTH = 70f;
 
 
     public BackgroundSound(Submarine listener) {

@@ -1,53 +1,29 @@
 import java.awt.Color;
 
-/**
- * PassiveSonar — the bottom-left HUD widget that visualises ambient sound.
- *
- * Visual design:
- *   - A dark rounded panel sits in the bottom-left corner.
- *   - A horizontal baseline runs across the centre of the panel.
- *   - The baseline erupts into a multi-line animated waveform whose amplitude
- *     scales with perceived sound intensity.
- *   - The wave is drawn in multiple passes (glow + sharp core) for a green
- *     phosphor CRT look consistent with the radar system.
- *   - A label "PASSIVE SONAR" and a live intensity readout sit above the panel.
- *
- * Usage — call once per tick:
- *   PassiveSonar.draw(totalIntensity, WIDTH, HEIGHT, tick);
- *
- * where tick is a monotonically increasing int from the game loop (drives animation).
- */
+//holy shit this should not have been this hard
+
 public class PassiveSonar {
 
-    // ── Panel geometry ─────────────────────────────────────────────────────────
-    private static final int    PANEL_X      = 10;    // left edge of panel (screen px)
-    private static final int    PANEL_Y      = 200;   // bottom edge — must clear the fog's bottom strip (CY - FOG_HALF_H - rings*3)
-    private static final int    PANEL_W      = 220;   // panel width
-    private static final int    PANEL_H      = 90;    // panel height
+    //base panel vars
+    private static final int PANEL_X = 10;
+    private static final int PANEL_Y = 200;
+    private static final int PANEL_W = 220;
+    private static final int PANEL_H = 90;
 
-    // ── Waveform ───────────────────────────────────────────────────────────────
-    private static final int    WAVE_POINTS  = 80;    // horizontal resolution
-    /** Max amplitude of the wave in pixels (at full intensity). */
-    private static final double MAX_AMP      = 32.0;
-    /** Intensity at which the wave is at maximum amplitude. */
+    //wave vars
+    private static final int WAVE_POINTS = 80;
+    private static final double MAX_AMP = 32.0;
     private static final float  MAX_INTENSITY = 3000f;
-    /** Number of sine harmonics layered to make the wave look organic. */
-    private static final int    HARMONICS    = 4;
+    private static final int HARMONICS = 2;
 
-    // ── History buffer — smooth the intensity over several frames ──────────────
-    private static final int    HISTORY      = 24;
+
+    //lower means less smoothing
+    private static final int HISTORY = 6;
+    //stores the last 6 raw intensity vals 
     private static final float[] intensityBuf = new float[HISTORY];
-    private static int           bufHead      = 0;
+    //circular buffer head index
+    private static int bufHead = 0;
 
-    // ── Public API ─────────────────────────────────────────────────────────────
-
-    /**
-     * Draw the passive sonar panel.
-     *
-     * @param rawIntensity  total perceived sound intensity this tick
-     * @param screenH       canvas height (for bottom-anchoring)
-     * @param tick          monotonic frame counter (drives wave animation)
-     */
     public static void draw(float rawIntensity, int screenH, long tick) {
 
         // ── Smooth intensity ───────────────────────────────────────────────────
@@ -143,7 +119,6 @@ public class PassiveSonar {
         for (int i = 0; i < WAVE_POINTS - 1; i++)
             StdDraw.line(wx[i], wy[i], wx[i + 1], wy[i + 1]);
 
-        // ── Reset pen ─────────────────────────────────────────────────────────
         StdDraw.setPenRadius(0.002);
     }
 }
