@@ -1,15 +1,18 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Game — the playable runtime for the submarine game.
  *
- * Sound system additions:
- *   - EngineSound  : continuous emitter attached to the player sub, always live.
- *   - Mouse-hold   : click and hold anywhere to spawn a test Sound at the world
- *                    position of the cursor; longer hold = higher intensity.
- *   - Radar ping   : spawns a loud Sound at the sub's position when R is pressed.
- *   - PassiveSonar : bottom-left waveform display driven by total perceived intensity.
+ * Multiplayer additions:
+ *   - Pass --host to run as server+client (host mode)
+ *   - Pass --join <ip> to connect to a host
+ *   - Pass --solo for offline play (default)
+ *
+ *   java Game --solo
+ *   java Game --host
+ *   java Game --join 192.168.1.5
  */
 public class Game {
 
@@ -32,8 +35,6 @@ public class Game {
     private static final long   PING_DURATION_MS = 2500;
     private static long         pingStartMs      = -1;
     private static boolean      rWasDown         = false;
-
-    /** Strength of the sound burst spawned by a radar ping. */
     private static final float  PING_SOUND_STRENGTH = 8000f;
 
     // ── Systems ────────────────────────────────────────────────────────────────
@@ -50,7 +51,12 @@ public class Game {
     private static boolean  mouseWasDown   = false;
     private static long     mousePressedMs = 0;
 
-    // ── Frame counter (drives sonar animation) ─────────────────────────────────
+    // ── Networking ─────────────────────────────────────────────────────────────
+    private static NetworkClient   netClient  = null;
+    private static NetworkServer   netServer  = null;
+    private static boolean         multiplayer = false;
+
+    // ── Frame counter ──────────────────────────────────────────────────────────
     private static long tick = 0;
 
     // ── Cached screen centre ───────────────────────────────────────────────────
@@ -60,12 +66,63 @@ public class Game {
     // ── Entry point ────────────────────────────────────────────────────────────
 
     public static void main(String[] args) {
+        parseArgs(args);
         setupWindow();
         setupWorld();
         spawnPlayer();
         setupSounds();
+        setupNetwork(args);
         printControls();
         gameLoop();
+    }
+
+    // ── Argument parsing ───────────────────────────────────────────────────────
+
+    private static void parseArgs(String[] args) {
+        for (String a : args) {
+            if (a.equals("--host") || a.equals("--join")) {
+                multiplayer = true;
+            }
+        }
+    }
+
+    // ── Network setup ──────────────────────────────────────────────────────────
+
+    private static void setupNetwork(String[] args) {
+        if (!multiplayer) {
+            System.out.println("Solo mode — no network.");
+            return;
+        }
+
+        String mode = args.length > 0 ? args[0] : "--solo";
+
+        try {
+            if (mode.equals("--host")) {
+                // Start embedded server then connect as first client
+                netServer = new NetworkServer();
+                netServer.start();
+                System.out.println("Hosting — server started.");
+                Thread.sleep(300); // give server a moment to bind
+                netClient = new NetworkClient("localhost", "Host");
+                netClient.connect();
+
+            } else if (mode.equals("--join") && args.length > 1) {
+                String ip = args[1];
+                netClient = new NetworkClient(ip, "Player");
+                netClient.connect();
+                System.out.println("Joined server at " + ip);
+
+            } else {
+                System.out.println("Unknown mode — running solo.");
+                multiplayer = false;
+            }
+        } catch (Exception e) {
+            System.err.println("Network setup failed: " + e.getMessage());
+            System.err.println("Falling back to solo mode.");
+            multiplayer = false;
+            netClient   = null;
+            netServer   = null;
+        }
     }
 
     // ── Init ───────────────────────────────────────────────────────────────────
@@ -104,6 +161,26 @@ public class Game {
             updateSounds();
             player.update();
             lockCamera();
+
+            // ── Network tick ──────────────────────────────────────────────────
+            if (multiplayer && netClient != null && netClient.isConnected()) {
+                // Send position at ~10hz (every 6 frames)
+                if (tick % 12 == 0) netClient.sendState(player);
+
+                // Drain remote sounds into our local list so sonar reacts
+                netClient.drainSounds(sounds);
+
+                // Drain remote radar pings — start visual animation for each
+                for (Packets.RadarPing ping : netClient.drainPings()) {
+                    // Add the sound so our sonar hears it
+                    sounds.add(new RadarSound(ping.x, ping.y,
+                                              PING_SOUND_STRENGTH, ping.playerId));
+                    // Note: we don't start a local visual ping for remote pings —
+                    // the sound on the sonar is enough. Add visual if you want later.
+                    System.out.println("Remote ping from " + ping.playerId);
+                }
+            }
+
             render();
             StdDraw.show();
             StdDraw.pause(16);
@@ -122,6 +199,8 @@ public class Game {
 
     private static void handleInput() {
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
+            if (netClient != null) netClient.disconnect();
+            if (netServer != null) netServer.stop();
             System.out.println("Goodbye.");
             System.exit(0);
         }
@@ -132,27 +211,34 @@ public class Game {
         boolean rDown = StdDraw.isKeyPressed('R') || StdDraw.isKeyPressed('r');
         if (rDown && !rWasDown) {
             pingStartMs = System.currentTimeMillis();
-            // Spawn a loud sound burst at the sub's position
             sounds.add(new RadarSound(player.getX(), player.getY(),
-                                 PING_SOUND_STRENGTH, "player_ping"));
+                                      PING_SOUND_STRENGTH, "player_ping"));
+
+            // Tell other players about this ping
+            if (multiplayer && netClient != null) {
+                netClient.sendRadarPing(player.getX(), player.getY());
+                netClient.sendSoundEvent(player.getX(), player.getY(),
+                                         PING_SOUND_STRENGTH, "radar");
+            }
             System.out.println("Radar ping!");
         }
         rWasDown = rDown;
 
         // ── Mouse hold — test sound ────────────────────────────────────────────
-        // Press and hold anywhere on screen. Release spawns a Sound whose
-        // strength scales with how long you held (capped at 3 seconds).
         boolean mouseDown = StdDraw.isMousePressed();
         if (mouseDown && !mouseWasDown) {
-            // Mouse just pressed — record start time
             mousePressedMs = System.currentTimeMillis();
         } else if (!mouseDown && mouseWasDown) {
-            // Mouse just released — compute hold duration → strength
-            long heldMs   = System.currentTimeMillis() - mousePressedMs;
-            float strength = Math.min(8000f, heldMs * 3.5f);   // 0–3000 over 0–2 s
+            long  heldMs   = System.currentTimeMillis() - mousePressedMs;
+            float strength = Math.min(8000f, heldMs * 3.5f);
             float wx = engine.screenToWorldX(StdDraw.mouseX());
             float wy = engine.screenToWorldY(StdDraw.mouseY());
-            sounds.add(new TestSound(wx, wy, strength, "test"));
+            sounds.add(new Sound(wx, wy, strength, "test") {});
+
+            // Broadcast test sound to other players
+            if (multiplayer && netClient != null) {
+                netClient.sendSoundEvent(wx, wy, strength, "test");
+            }
             System.out.printf("Test sound spawned at (%.0f, %.0f) strength=%.0f%n",
                     wx, wy, strength);
         }
@@ -164,7 +250,6 @@ public class Game {
     private static void updateSounds() {
         for (Sound s : sounds) s.tick();
         Sound.pruneDead(sounds);
-        // Make sure engine sound is never removed by pruning (it's never dead)
         if (!sounds.contains(engineSound)) sounds.add(engineSound);
     }
 
@@ -192,13 +277,21 @@ public class Game {
         float pingAlpha = pingAlpha();
         if (pingAlpha > 0f) drawRadarOutlines(pingAlpha);
 
-        // Submarine
+        // Local player submarine
         player.drawCentred(CX, CY);
+
+        // Remote submarines
+        if (multiplayer && netClient != null) {
+            Map<String, Submarine> remotes = netClient.getRemoteSubs();
+            for (Submarine remote : remotes.values()) {
+                remote.draw(engine);
+            }
+        }
 
         // HUD
         HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);
 
-        // ── Passive sonar display ──────────────────────────────────────────────
+        // Passive sonar
         float perceived = Sound.totalPerceivedAt(sounds, player.getX(), player.getY());
         PassiveSonar.draw(perceived, HEIGHT, tick);
     }
@@ -222,13 +315,16 @@ public class Game {
 
     private static void printControls() {
         System.out.println("=== Submarine Game ===");
-        System.out.println("  W / Up      → thrust forward");
-        System.out.println("  S / Down    → thrust backward");
-        System.out.println("  A / Left    → rudder left");
-        System.out.println("  D / Right   → rudder right");
-        System.out.println("  Q / E       → dive / surface");
-        System.out.println("  R           → radar ping (spawns sound)");
-        System.out.println("  Click+Hold  → spawn test sound on release");
+        System.out.println("  W/S         → thrust forward/back");
+        System.out.println("  A/D         → rudder left/right");
+        System.out.println("  Q/E         → dive/surface");
+        System.out.println("  R           → radar ping");
+        System.out.println("  Click+Hold  → spawn test sound");
         System.out.println("  ESC         → quit");
+        System.out.println();
+        System.out.println("  Launch args:");
+        System.out.println("    --solo          offline (default)");
+        System.out.println("    --host          host a game");
+        System.out.println("    --join <ip>     join a game");
     }
 }
