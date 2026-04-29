@@ -13,25 +13,20 @@ public class HUD {
         double outerW = FOG_HALF_W + featherDist;
         double outerH = FOG_HALF_H + featherDist;
 
-        // ── 2. Draw Opaque black rectangles (covers screen outside the hole) ──
+        //draw black rect for to cover outside the elipse
         StdDraw.setPenColor(new Color(0, 0, 0, 255));
 
-        // Left strip
+        //im not sure these ifs are needed bc the elipse should always be smaller than the screen but just in case 
         if (CX - outerW > 0)
             StdDraw.filledRectangle((CX - outerW) / 2.0, CY, (CX - outerW) / 2.0, HEIGHT / 2.0);
-        // Right strip
         if (CX + outerW < WIDTH)
             StdDraw.filledRectangle((CX + outerW + WIDTH) / 2.0, CY, (WIDTH - CX - outerW) / 2.0, HEIGHT / 2.0);
-        // Top strip
         if (CY + outerH < HEIGHT)
             StdDraw.filledRectangle(CX, (CY + outerH + HEIGHT) / 2.0, WIDTH / 2.0, (HEIGHT - CY - outerH) / 2.0);
-        // Bottom strip
         if (CY - outerH > 0)
             StdDraw.filledRectangle(CX, (CY - outerH) / 2.0, WIDTH / 2.0, (CY - outerH) / 2.0);
-
-        // ── 3. Draw the gradient image inside the hole ────────────────────────
-        // Sized to exactly match the gap left by the four rectangles.
-        // If the image has transparency, the water/game will show through the center.
+        
+        //picture should lwok be cashed 
         StdDraw.picture(CX, CY, "fow.png", outerW*2 , outerH*2 );
     }
 

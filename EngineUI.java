@@ -17,19 +17,19 @@ public class EngineUI {
         float depthM = Math.max(0f, -wy) * METERS_PER_PIXEL;
 
         StdDraw.setPenColor(0, 0, 0);
-        StdDraw.textLeft(11, HEIGHT - 19, String.format("World: (%.0f, %.0f)", wx, wy));
-        StdDraw.textLeft(11, HEIGHT - 35, String.format("Depth: %.0f m", depthM));
+        StdDraw.textLeft(11, HEIGHT - 19, String.format("%.0f %.0f", wx, wy));
+        StdDraw.textLeft(11, HEIGHT - 35, String.format("%.0f m", depthM));
         StdDraw.textLeft(11, HEIGHT - 51, String.format("Sprites: %d", engine.getSprites().size()));
-        StdDraw.textLeft(11, HEIGHT - 67, "Layer: " + (currentDepth == 0 ? "Background" : "Foreground"));
+        StdDraw.textLeft(11, HEIGHT - 67, "Layer: " + (currentDepth == 0 ? "Bg" : "Fg"));
         if (currentRock != null)
             StdDraw.textLeft(11, HEIGHT - 83,
                     String.format("In progress: %d vertices", currentRock.getVertexCount()));
 
         StdDraw.setPenColor(220, 220, 220);
-        StdDraw.textLeft(10, HEIGHT - 18, String.format("World: (%.0f, %.0f)", wx, wy));
-        StdDraw.textLeft(10, HEIGHT - 34, String.format("Depth: %.0f m", depthM));
+        StdDraw.textLeft(10, HEIGHT - 18, String.format("%.0f %.0f", wx, wy));
+        StdDraw.textLeft(10, HEIGHT - 34, String.format("%.0f m", depthM));
         StdDraw.textLeft(10, HEIGHT - 50, String.format("Sprites: %d", engine.getSprites().size()));
-        StdDraw.textLeft(10, HEIGHT - 66, "Layer: " + (currentDepth == 0 ? "Background" : "Foreground"));
+        StdDraw.textLeft(10, HEIGHT - 66, "Layer: " + (currentDepth == 0 ? "Bg" : "Fg"));
         if (currentRock != null)
             StdDraw.textLeft(10, HEIGHT - 82,
                     String.format("In progress: %d vertices", currentRock.getVertexCount()));
