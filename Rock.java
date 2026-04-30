@@ -10,8 +10,8 @@ public class Rock extends Sprite {
     private final List<Float> vertices;
     private int depth;
 
-    private static final Color BG_BASE   = Color.decode("#4a474e");
-    private static final Color BG_SHADOW = Color.decode("#090809");
+    private static final Color BG_BASE   = Color.decode("#131313");
+    private static final Color BG_SHADOW = Color.decode("#000000");
     private static final Color FG_BASE   = Color.decode("#c6c6c6");
     private static final Color FG_SHADOW = Color.decode("#8b8b8b");
     private static final float OUTLINE_WIDTH = 0.01f;
