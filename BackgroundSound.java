@@ -26,8 +26,5 @@ public class BackgroundSound extends Sound {
     @Override
     public boolean isDead() { return false; }
 
-    @Override
-    public String toString() {
-        return String.format("BackgroundSound[str=%.1f]", AMBIENT_STRENGTH);
-    }
+
 }

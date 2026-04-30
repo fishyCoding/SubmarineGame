@@ -102,26 +102,33 @@ public class Game {
                 netServer = new NetworkServer();
                 netServer.start();
                 System.out.println("Hosting — server started.");
-                Thread.sleep(300); // give server a moment to bind
+
+
+                Thread.sleep(300); // wait a bit for server to start before connecting
+
+                //connect client to local server
                 netClient = new NetworkClient("localhost", "Host");
                 netClient.connect();
 
             } else if (mode.equals("--join") && args.length > 1) {
+                // Connect to hosts IP
+    
                 String ip = args[1];
                 netClient = new NetworkClient(ip, "Player");
                 netClient.connect();
                 System.out.println("Joined server at " + ip);
 
             } else {
+                //For testing purposes
                 System.out.println("Unknown mode — running solo.");
                 multiplayer = false;
             }
         } catch (Exception e) {
-            System.err.println("Network setup failed: " + e.getMessage());
-            System.err.println("Falling back to solo mode.");
+            System.err.println("Fail "+e.getMessage());
+            System.err.println("Running w/o network");
             multiplayer = false;
-            netClient   = null;
-            netServer   = null;
+            netClient = null;
+            netServer = null;
         }
     }
 
@@ -136,9 +143,9 @@ public class Game {
     }
 
     private static void setupWorld() {
-        engine      = new GameEngine(DATA_FILE);
+        engine = new GameEngine(DATA_FILE);
         bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, 120, SEAFLOOR_TOP, SEAFLOOR_BASE);
-        water       = new Water(HEIGHT, WIDTH, SURFACE_LEVEL, engine);
+        water = new Water(HEIGHT, WIDTH, SURFACE_LEVEL, engine);
         engine.setCamera(SPAWN_X - (float) CX, SPAWN_Y - (float) CY);
     }
 
@@ -159,27 +166,22 @@ public class Game {
         while (true) {
             handleInput();
             updateSounds();
-            player.update();
-            lockCamera();
 
-            // ── Network tick ──────────────────────────────────────────────────
             if (multiplayer && netClient != null && netClient.isConnected()) {
-                // Send position at ~10hz (every 6 frames)
                 if (tick % 12 == 0) netClient.sendState(player);
 
-                // Drain remote sounds into our local list so sonar reacts
+                //Gets sounds from other players and adds them to this world
                 netClient.drainSounds(sounds);
 
                 // Drain remote radar pings — start visual animation for each
-                for (Packets.RadarPing ping : netClient.drainPings()) {
-                    // Add the sound so our sonar hears it
-                    sounds.add(new RadarSound(ping.x, ping.y,
-                                              PING_SOUND_STRENGTH, ping.playerId));
-                    // Note: we don't start a local visual ping for remote pings —
-                    // the sound on the sonar is enough. Add visual if you want later.
+                for (Packets.RadarPing ping:netClient.drainPings()) {
+                    sounds.add(new RadarSound(ping.x, ping.y,PING_SOUND_STRENGTH, ping.playerId));
                     System.out.println("Remote ping from " + ping.playerId);
                 }
             }
+            player.update();
+            lockCamera();
+
 
             render();
             StdDraw.show();
@@ -188,14 +190,10 @@ public class Game {
         }
     }
 
-    // ── Camera ─────────────────────────────────────────────────────────────────
 
     private static void lockCamera() {
-        engine.setCamera(player.getX() - (float) CX,
-                         player.getY() - (float) CY);
+        engine.setCamera(player.getX() - (float) CX, player.getY() - (float) CY);
     }
-
-    // ── Input ──────────────────────────────────────────────────────────────────
 
     private static void handleInput() {
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
@@ -244,8 +242,6 @@ public class Game {
         }
         mouseWasDown = mouseDown;
     }
-
-    // ── Sound update ───────────────────────────────────────────────────────────
 
     private static void updateSounds() {
         for (Sound s : sounds) s.tick();

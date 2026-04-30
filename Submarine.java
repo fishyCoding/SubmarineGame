@@ -1,38 +1,25 @@
-/**
- * Submarine — player-controlled underwater vehicle.
- *
- * Controls:
- *   W / S   — engine forward / reverse (thrust along current heading)
- *   A / D   — deflect the rudder left / right (clamped to ±30°)
- *             The rudder gradually turns the sub's heading while moving.
- *             Releasing A/D lets the rudder drift back to neutral.
- *   Q / E   — dive / surface directly, independent of heading and rudder
- *
- * The rudder is drawn as a small angled fin at the stern so the player can
- * see its current deflection at a glance.
- */
 public class Submarine extends Character {
 
     //player state variablees
-    private int     maxHealth;
-    private int     health;
+    private int maxHealth;
+    private int health;
     private boolean alive;
     private float rudderAngle = 0f;
 
     // Physics constants
-    private static final float THRUST_ACCEL     = 0.35f;  // world-units / tick²
-    private static final float VERTICAL_ACCEL   = 0.30f;  // Q/E  world-units / tick²
-    private static final float DRAG             = 0.04f;
-    private static final float VERTICAL_DRAG    = 0.06f;
-    private static final float MAX_SPEED        = 6f;
+    private static final float THRUST_ACCEL = 0.35f;  // world-units / tick²
+    private static final float VERTICAL_ACCEL = 0.30f;  // Q/E  world-units / tick²
+    private static final float DRAG = 0.04f;
+    private static final float VERTICAL_DRAG = 0.06f;
+    private static final float MAX_SPEED = 6f;
 
     // Rudder constants
-    private static final float RUDDER_RATE      = 0.5f;   // dgs per tick for turning
-    private static final float RUDDER_RETURN    = 1.5f;   // dgs returning to neutral when released
-    private static final float RUDDER_MAX       = 30f;    // max turning angle 
+    private static final float RUDDER_RATE = 0.5f;   // dgs per tick for turning
+    private static final float RUDDER_RETURN = 1.5f;   // dgs returning to neutral when released
+    private static final float RUDDER_MAX = 30f;    // max turning angle 
     private static final float RUDDER_TURN_GAIN = 0.02f;  // degrees of heading change per degree of rudder per unit speed (way too much physics in this project ong)
 
-    // ── Visual ─────────────────────────────────────────────────────────────────
+    //we're replacing this soon don't worry
     private static final float BODY_HALF_W = 30f;
     private static final float BODY_HALF_H = 12f;
 

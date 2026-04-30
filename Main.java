@@ -1,26 +1,24 @@
-/**
- * Main — Submarine Game Editor / Testbed
- *
- * Controls:
- *   Click              Select rock
- *   Drag               Move selected rock
- *   Shift+Click        Add vertex to selected rock
- *   Space              Toggle depth layer (background / foreground)
- *   U                  Undo last vertex
- *   D                  Delete sprite under cursor
- *   C                  Clear all sprites
- *   S                  Save
- *   N                  Create new rock at cursor
- *   ESC                Save & exit
+/*
+
+Main engine, allows for rocks to be moved and map to be edited
+
+saved to a txt file
+
+
  */
 public class Main {
 
-    private static final int    WIDTH            = 1600;
-    private static final int    HEIGHT           = 1000;
-    private static final float  SURFACE_LEVEL    = 0f;
-    private static final float  SEAFLOOR_TOP     = -1820f;
-    private static final float  SEAFLOOR_BASE    = -2400f;
-    private static final String DATA_FILE        = "sprites.txt";
+    //set up variables
+    private static final int WIDTH = 1600;
+    private static final int HEIGHT = 1000;
+
+    //seafloor depths (in meters)
+    private static final float SURFACE_LEVEL = 0f;
+    private static final float SEAFLOOR_TOP = -1820f;
+    private static final float  SEAFLOOR_BASE = -2400f;
+
+    //save file
+    private static final String DATA_FILE = "sprites.txt";
 
     //engine state variables, most get set during the start of runtime
     private static GameEngine engine;
@@ -29,14 +27,16 @@ public class Main {
     private static int currentDepth = 0;
 
     //mouse click for engine inputs: 
-    private static boolean          mouseWasDown = false;
-    private static float            lastMouseX, lastMouseY;
+    private static boolean mouseWasDown = false;
+    private static float lastMouseX, lastMouseY;
 
     //UI and background
     static Water watergradient;
     static EngineUI UI;
 
     public static void main(String[] args) {
+        
+        //canvas setup
         StdDraw.setCanvasSize(WIDTH, HEIGHT);
         StdDraw.setXscale(0, WIDTH);
         StdDraw.setYscale(0, HEIGHT);
@@ -125,12 +125,14 @@ public class Main {
         //on mouse click
         if (mouseDown && !mouseWasDown) {
             //if ur holding shift and uv selected a rock
-            if (shiftDown && selectedRock != null) {
-                selectedRock.addVertex(mouseX, mouseY);
-                System.out.println("Added vertex. Now " + selectedRock.getVertexCount() + " vertices.");
+            if (shiftDown && selectedRock !=null) {
+                selectedRock.addVertex(mouseX,mouseY);
+                System.out.println("Added vertex. Now "+selectedRock.getVertexCount()+" vertices.");
             } else {
                 //check if u clicked on a rock and select it
-                Sprite sprite = engine.getSpriteAt(mouseX, mouseY);
+                Sprite sprite = engine.getSpriteAt(mouseX,mouseY);
+                //check if its a rock to move it
+                //im not sure if it is needed lowk theres only rocks
                 if (sprite instanceof Rock) {
                     selectedRock = (Rock) sprite;
                     currentDepth = selectedRock.getDepth();
@@ -145,14 +147,14 @@ public class Main {
         } 
         //on mouse drag, move the rock uv selected
         else if (mouseDown && mouseWasDown && selectedRock != null && !shiftDown) {
-            float deltaX = mouseX - lastMouseX;
-            float deltaY = mouseY - lastMouseY;
-            selectedRock.setPosition(selectedRock.getX() + deltaX, selectedRock.getY() + deltaY);
+            float deltaX = mouseX-lastMouseX;
+            float deltaY = mouseY-lastMouseY;
+            selectedRock.setPosition(selectedRock.getX()+deltaX, selectedRock.getY()+deltaY);
             lastMouseX = mouseX;
             lastMouseY = mouseY;
         }
         
-        mouseWasDown = mouseDown;
+        mouseWasDown=mouseDown;
     }
 
     private static void render() {

@@ -26,22 +26,17 @@ public abstract class Character extends Sprite {
     // ── Collision ──────────────────────────────────────────────────────────────
     protected float collisionRadius;
 
-    // ── Constructor ────────────────────────────────────────────────────────────
 
-    public Character(String id,
-                     float x, float y,
-                     float collisionRadius,
-                     String imagePath,
-                     float imageHalfW, float imageHalfH) {
+    public Character(String id,float x, float y,float collisionRadius,String imagePath,float imageHalfW, float imageHalfH) {
         super(x, y, Color.WHITE);
-        this.id              = id;
+        this.id = id;
         this.collisionRadius = collisionRadius;
-        this.imagePath       = imagePath;
-        this.imageHalfW      = imageHalfW;
-        this.imageHalfH      = imageHalfH;
-        this.vx              = 0;
-        this.vy              = 0;
-        this.angle           = 0;
+        this.imagePath = imagePath;
+        this.imageHalfW = imageHalfW;
+        this.imageHalfH = imageHalfH;
+        this.vx = 0;
+        this.vy = 0;
+        this.angle = 0;
     }
 
     // ── Physics ────────────────────────────────────────────────────────────────
@@ -63,10 +58,7 @@ public abstract class Character extends Sprite {
         vy *= (1f - dragCoefficient);
     }
 
-    /**
-     * Directly set velocity. Does NOT update heading — subclasses decide
-     * whether their heading should track movement direction.
-     */
+
     public void setVelocity(float vx, float vy) {
         this.vx = vx;
         this.vy = vy;
@@ -117,16 +109,19 @@ public abstract class Character extends Sprite {
     }
 
     // ── Getters / setters ──────────────────────────────────────────────────────
-
-    public String getId()              { return id; }
-    public float  getVx()             { return vx; }
-    public float  getVy()             { return vy; }
-    public float  getAngle()          { return angle; }
-    public float  getSpeed()          { return (float) Math.hypot(vx, vy); }
+    //just putting it in here if we need an id system
+    public String getId() { 
+        return id; 
+    }
+    
+    public float  getVx() { return vx; }
+    public float  getVy() { return vy; }
+    public float  getAngle() { return angle; }
+    public float  getSpeed() { return (float) Math.hypot(vx, vy); }
     public float  getCollisionRadius(){ return collisionRadius; }
-    public String getImagePath()      { return imagePath; }
+    public String getImagePath() { return imagePath; }
 
-    public void setAngle(float angle) { this.angle = angle % 360; }
+    public void setAngle(float angle){ this.angle = angle % 360; }
     public void setImagePath(String p){ this.imagePath = p; }
 
     @Override public String getType() { return "CHARACTER"; }
