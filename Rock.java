@@ -10,10 +10,11 @@ public class Rock extends Sprite {
     private final List<Float> vertices;
     private int depth;
 
-    private static final Color BG_BASE   = Color.decode("#372f42");
-    private static final Color BG_SHADOW = Color.decode("#1a1620");
-    private static final Color FG_BASE   = Color.decode("#524a5a");
-    private static final Color FG_SHADOW = Color.decode("#2a2230");
+    private static final Color BG_BASE   = Color.decode("#4a474e");
+    private static final Color BG_SHADOW = Color.decode("#090809");
+    private static final Color FG_BASE   = Color.decode("#c6c6c6");
+    private static final Color FG_SHADOW = Color.decode("#8b8b8b");
+    private static final float OUTLINE_WIDTH = 0.01f;
  
 
     public Rock(float x, float y, int depth) {
@@ -59,6 +60,7 @@ public class Rock extends Sprite {
     }
     public List<Float> getVertices() {
         return this.vertices;
+        //gets verts list for the radar drawing
     }
 
     public int getDepth() {
@@ -100,32 +102,28 @@ public class Rock extends Sprite {
             screenYs[idx] = engine.worldToScreenY(this.vertices.get(i + 1) + this.getY());
         }
 
-        // Shadow outline
-        Color shadowColor = this.depth == 0 ? BG_SHADOW : FG_SHADOW;
-        StdDraw.setPenColor(shadowColor);
-        double[] shadowXs = new double[screenXs.length];
-        double[] shadowYs = new double[screenYs.length];
-        for (int i = 0; i < screenXs.length; i++) {
-            shadowXs[i] = screenXs[i] + 3;
-            shadowYs[i] = screenYs[i] - 2;
-        }
-        StdDraw.filledPolygon(shadowXs, shadowYs);
+
 
         // Fill
         Color baseColor = this.depth == 0 ? BG_BASE : FG_BASE;
         StdDraw.setPenColor(baseColor);
         StdDraw.filledPolygon(screenXs, screenYs);
 
-        // Outline
-        StdDraw.setPenColor(50, 50, 50);
-        StdDraw.setPenRadius(0.002);
-        StdDraw.polygon(screenXs, screenYs);
+        //draw shadow as individual lines connecting each outer point.
+        Color shadowColor = this.depth == 0 ? BG_SHADOW : FG_SHADOW;
+        StdDraw.setPenColor(shadowColor);
+        StdDraw.setPenRadius(OUTLINE_WIDTH);
+        for (int i = 0; i < screenXs.length; i++) {
+            int next = (i + 1) % screenXs.length;
+            StdDraw.line(screenXs[i], screenYs[i], screenXs[next], screenYs[next]);
+        }
+    
     }
     @Override
     public String serialize() {
         StringBuilder sb = new StringBuilder();
         
-        // Protocol: ROCK [x] [y] [depth] [vertexCount] [vertices...] [r] [g] [b]
+        // Standardized save format: ROCK [x] [y] [depth] [vertexCount] [vertices...] [r] [g] [b]
         sb.append("ROCK ")
           .append(getX()).append(" ")
           .append(getY()).append(" ")

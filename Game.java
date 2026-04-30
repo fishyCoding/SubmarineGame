@@ -17,8 +17,8 @@ import java.util.Map;
 public class Game {
 
     // ── Canvas ─────────────────────────────────────────────────────────────────
-    private static final int    WIDTH         = 1300;
-    private static final int    HEIGHT        = 800;
+    private static final int    WIDTH         = 650;
+    private static final int    HEIGHT        = 400;
 
     // ── World ──────────────────────────────────────────────────────────────────
     private static final float  SURFACE_LEVEL = 0f;
@@ -35,7 +35,7 @@ public class Game {
     private static final long   PING_DURATION_MS = 2500;
     private static long         pingStartMs      = -1;
     private static boolean      rWasDown         = false;
-    private static final float  PING_SOUND_STRENGTH = 8000f;
+    private static final float  PING_SOUND_STRENGTH = 5000f;
 
     // ── Systems ────────────────────────────────────────────────────────────────
     private static GameEngine      engine;
@@ -67,11 +67,11 @@ public class Game {
 
     public static void main(String[] args) {
         parseArgs(args);
-        setupWindow();
-        setupWorld();
         spawnPlayer();
-        setupSounds();
+        setupWorld();
         setupNetwork(args);
+        setupWindow();
+        setupSounds();
         printControls();
         gameLoop();
     }
@@ -130,6 +130,7 @@ public class Game {
             netClient = null;
             netServer = null;
         }
+
     }
 
     // ── Init ───────────────────────────────────────────────────────────────────
@@ -139,7 +140,12 @@ public class Game {
         StdDraw.setXscale(0, WIDTH);
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
-        StdDraw.setTitle("Submarine Game");
+        String title= multiplayer ? netClient.host : "Solo";
+      
+        
+        StdDraw.setTitle(title);
+        
+
     }
 
     private static void setupWorld() {

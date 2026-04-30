@@ -29,7 +29,7 @@ public class Sound {
      * Acoustic falloff: perceived = strength / (1 + dist² * FALLOFF).
      * Smaller = sounds carry farther.
      */
-    public static final float FALLOFF        = 0.000005f;
+    public static final float FALLOFF        = 0.00006f;
 
     // ── Fields ─────────────────────────────────────────────────────────────────
     protected float  x;

@@ -37,7 +37,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NetworkClient {
 
     private final Client client;
-    private final String host;
+
+    public final String host;
+
     private final String requestedName;
 
     // Assigned by server on join

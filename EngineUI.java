@@ -10,37 +10,25 @@ public class EngineUI {
     }
 
     public void drawUI(Rock currentRock, int currentDepth, float METERS_PER_PIXEL) {
-        java.awt.Font mono = new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 13);
-        StdDraw.setFont(mono);
 
+        StdDraw.setPenColor(255, 255, 255);
+        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 14));
         float wx = worldMouseX(), wy = worldMouseY();
         float depthM = Math.max(0f, -wy) * METERS_PER_PIXEL;
-
-        StdDraw.setPenColor(0, 0, 0);
-        StdDraw.textLeft(11, HEIGHT - 19, String.format("%.0f %.0f", wx, wy));
-        StdDraw.textLeft(11, HEIGHT - 35, String.format("%.0f m", depthM));
-        StdDraw.textLeft(11, HEIGHT - 51, String.format("Sprites: %d", engine.getSprites().size()));
-        StdDraw.textLeft(11, HEIGHT - 67, "Layer: " + (currentDepth == 0 ? "Bg" : "Fg"));
+        StdDraw.textLeft(15, HEIGHT - 20, String.format("%.0f %.0f", wx, wy));
+        StdDraw.textLeft(15, HEIGHT - 35, String.format("%.0f m", depthM));
+        StdDraw.textLeft(15, HEIGHT - 50, String.format("Sprites: %d", engine.getSprites().size()));
+        StdDraw.textLeft(15, HEIGHT - 70, "Layer: " + (currentDepth == 0 ? "Bg" : "Fg"));
         if (currentRock != null)
-            StdDraw.textLeft(11, HEIGHT - 83,
+            StdDraw.textLeft(15, HEIGHT - 83,
                     String.format("In progress: %d vertices", currentRock.getVertexCount()));
 
-        StdDraw.setPenColor(220, 220, 220);
-        StdDraw.textLeft(10, HEIGHT - 18, String.format("%.0f %.0f", wx, wy));
-        StdDraw.textLeft(10, HEIGHT - 34, String.format("%.0f m", depthM));
-        StdDraw.textLeft(10, HEIGHT - 50, String.format("Sprites: %d", engine.getSprites().size()));
-        StdDraw.textLeft(10, HEIGHT - 66, "Layer: " + (currentDepth == 0 ? "Bg" : "Fg"));
+
         if (currentRock != null)
-            StdDraw.textLeft(10, HEIGHT - 82,
+            StdDraw.textLeft(15, HEIGHT - 82,
                     String.format("In progress: %d vertices", currentRock.getVertexCount()));
 
-        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
-        String hint = "Click:Vertex  Shift+Click:Finish  Arrows:Scroll  "
-                    + "Space:Layer  U:Undo  D:Delete  C:Clear  S:Save  ESC:Exit";
-        StdDraw.setPenColor(0, 0, 0);
-        StdDraw.textLeft(11, 15, hint);
-        StdDraw.setPenColor(200, 220, 255);
-        StdDraw.textLeft(10, 16, hint);
+        
     }
     public float worldMouseX() { 
         return engine.screenToWorldX(StdDraw.mouseX()); 

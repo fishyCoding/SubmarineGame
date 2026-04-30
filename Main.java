@@ -10,7 +10,7 @@ public class Main {
 
     //set up variables
     private static final int WIDTH = 1600;
-    private static final int HEIGHT = 1000;
+    private static final int HEIGHT = 800;
 
     //seafloor depths (in meters)
     private static final float SURFACE_LEVEL = 0f;
@@ -47,7 +47,7 @@ public class Main {
         engine.panCamera(0, -200);
         bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, 120, SEAFLOOR_TOP, SEAFLOOR_BASE);
         watergradient = new Water(HEIGHT, WIDTH, SURFACE_LEVEL, engine);
-        UI            = new EngineUI(engine, WIDTH, HEIGHT);
+        UI = new EngineUI(engine, WIDTH, HEIGHT);
 
         //w documentation
         printHelp();
@@ -93,11 +93,6 @@ public class Main {
             StdDraw.pause(200);
         }
 
-        if (StdDraw.isKeyPressed('C') || StdDraw.isKeyPressed('c')) {
-            engine.clearAll();
-            selectedRock = null;
-            StdDraw.pause(200);
-        }
 
         if (StdDraw.isKeyPressed('N') || StdDraw.isKeyPressed('n')) {
             Rock newRock = new Rock(worldMouseX(), worldMouseY(), currentDepth);
@@ -187,15 +182,8 @@ public class Main {
         }
 
         UI.drawUI(null, currentDepth, 1.0f);
-        drawModeIndicator();
     }
 
-    private static void drawModeIndicator() {
-        StdDraw.setPenColor(255, 255, 255);
-        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 14));
-        StdDraw.textLeft(10, 30, "Shift+Click = add vertex, Drag = move, U = undo vertex");
-        StdDraw.textLeft(10, 50, "N=New, S=Save, D=Delete, C=Clear, Space=Layer");
-    }
 
     public static float worldMouseX() { return engine.screenToWorldX(StdDraw.mouseX()); }
     private static float worldMouseY() { return engine.screenToWorldY(StdDraw.mouseY()); }
