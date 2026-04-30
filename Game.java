@@ -18,7 +18,7 @@ public class Game {
 
     // ── Canvas ─────────────────────────────────────────────────────────────────
     private static final int    WIDTH         = 1300;
-    private static final int    HEIGHT        = 1000;
+    private static final int    HEIGHT        = 800;
 
     // ── World ──────────────────────────────────────────────────────────────────
     private static final float  SURFACE_LEVEL = 0f;
@@ -270,6 +270,13 @@ public class Game {
 
         bottomLayer.draw(engine);
 
+
+        if (multiplayer && netClient != null) {
+            Map<String, Submarine> remotes = netClient.getRemoteSubs();
+            for (Submarine remote : remotes.values()) {
+                remote.draw(engine);
+            }
+        }
         // Fog of war
         HUD.drawFog(HEIGHT, WIDTH, CX, CY);
 
@@ -281,12 +288,7 @@ public class Game {
         player.drawCentred(CX, CY);
 
         // Remote submarines
-        if (multiplayer && netClient != null) {
-            Map<String, Submarine> remotes = netClient.getRemoteSubs();
-            for (Submarine remote : remotes.values()) {
-                remote.draw(engine);
-            }
-        }
+
 
         // HUD
         HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);
