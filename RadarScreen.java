@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -6,17 +7,14 @@ import java.util.Map;
  *
  * When the player fires a radar ping (R key), any remote submarines whose
  * positions were captured at ping time appear as blips on this screen.
- * The blips fade out in sync with the rock radar outlines, using the same
- * pingAlpha value passed in from Game.
+ * The blips fade out in sync with the rock radar outlines.
+ * * Only contacts that have a clear line of sight to the player are displayed.
  *
  * Layout (screen-space, top-right corner):
- *   - Dark green circular screen with grid lines
- *   - Player's sub always at centre
- *   - Each contact shown as a bright green dot + small label
- *   - Sweep line that fades with pingAlpha
- *
- * The radar world-radius controls how much of the world fits on screen.
- * Contacts outside this radius are clamped to the edge with a dimmer blip.
+ * - Dark green circular screen with grid lines
+ * - Player's sub always at centre
+ * - Each contact shown as a bright green dot + small label
+ * - Sweep line that fades with pingAlpha
  */
 public class RadarScreen {
 
@@ -24,6 +22,8 @@ public class RadarScreen {
     private static final int MARGIN   = 14;   // pixels from right / top edge
     private static final int RADIUS   = 90;   // screen-radius of the circular display
     private static final int DIAMETER = RADIUS * 2;
+    private static final int SAMPLES = 36; // Number of raymarch samples for line-of-sight checks
+
 
     // World range represented by the full radar radius
     private static final float WORLD_RADIUS = 2000f;
@@ -46,13 +46,15 @@ public class RadarScreen {
      * @param screenH    canvas height (pixels)
      * @param playerX    player world X
      * @param playerY    player world Y
-     * @param pingAlpha  0 = no ping / fully faded, 1 = fresh ping  (same value as rock outlines)
+     * @param pingAlpha  0 = no ping / fully faded, 1 = fresh ping
      * @param contacts   map of playerId → float[]{worldX, worldY} captured at ping time
+     * @param rocks      list of rocks currently in the world for line-of-sight occlusion
      */
     public static void draw(int screenW, int screenH,
                             float playerX, float playerY,
                             float pingAlpha,
-                            Map<String, float[]> contacts) {
+                            Map<String, float[]> contacts,
+                            List<Rock> rocks) {
 
         // Panel centre in screen coords (top-right corner)
         double cx = screenW - MARGIN - RADIUS;
@@ -79,8 +81,6 @@ public class RadarScreen {
 
         // ── Sweep line — only visible when a ping is fresh ─────────────────────
         if (pingAlpha > 0f) {
-            // Sweep angle based on how long ago the ping fired
-            // (rotates 360° over the ping duration for a satisfying sweep effect)
             double sweepAngle = pingAlpha * Math.PI * 2.0;   // clockwise
             double ex = cx + Math.cos(-sweepAngle) * RADIUS;
             double ey = cy + Math.sin(-sweepAngle) * RADIUS;
@@ -93,7 +93,7 @@ public class RadarScreen {
             StdDraw.line(cx, cy, ex, ey);
             StdDraw.setPenRadius(0.002);
 
-            // Faint trailing arc (approximate with several radial lines)
+            // Faint trailing arc
             for (int i = 1; i <= 8; i++) {
                 double trailAngle = sweepAngle + i * 0.08;
                 double tex = cx + Math.cos(-trailAngle) * RADIUS;
@@ -116,6 +116,13 @@ public class RadarScreen {
 
             for (Map.Entry<String, float[]> entry : contacts.entrySet()) {
                 float[] pos = entry.getValue();
+                
+                // --- LINE OF SIGHT CHECK ---
+                // If a rock blocks the path between the player and the contact, do not render this blip
+                if (!hasLineOfSight(playerX, playerY, pos[0], pos[1], rocks)) {
+                    continue;
+                }
+
                 float dx = pos[0] - playerX;
                 float dy = pos[1] - playerY;
 
@@ -152,8 +159,7 @@ public class RadarScreen {
                 if (!clamped) {
                     String label = entry.getKey();
                     if (label.length() > 8) label = label.substring(0, 8);
-                    StdDraw.setFont(new java.awt.Font("Monospaced",
-                                                       java.awt.Font.PLAIN, 8));
+                    StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 8));
                     StdDraw.setPenColor(new Color(COL_LABEL.getRed(),
                                                   COL_LABEL.getGreen(),
                                                   COL_LABEL.getBlue(), contactA));
@@ -175,5 +181,22 @@ public class RadarScreen {
         StdDraw.text(cx, cy + RADIUS + 10, "ACTIVE SONAR");
 
         StdDraw.setPenRadius(0.002);
+    }
+
+    /**
+     * Checks if there is a clear line of sight between two world points using raymarching.
+     */
+    private static boolean hasLineOfSight(float x1, float y1, float x2, float y2, List<Rock> rocks) {
+        for (int i = 1; i < SAMPLES; i++) {
+            float t  = (float) i / SAMPLES;
+            float px = x1 + t * (x2 - x1);
+            float py = y1 + t * (y2 - y1);
+            for (Rock r : rocks) {
+                if (r.contains(px, py)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

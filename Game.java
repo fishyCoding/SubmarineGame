@@ -17,8 +17,8 @@ import java.util.Map;
 public class Game {
 
     // ── Canvas ─────────────────────────────────────────────────────────────────
-    private static final int    WIDTH         = 1300;
-    private static final int    HEIGHT        = 800;
+    private static final int    WIDTH         = 750;
+    private static final int    HEIGHT        = 400;
 
     // ── World ──────────────────────────────────────────────────────────────────
     private static final float  SURFACE_LEVEL = 0f;
@@ -325,24 +325,11 @@ public class Game {
         float lx = player.getX();
         float ly = player.getY();
 
-        if (!USE_RAYTRACE_SONAR) {
-            return Sound.totalPerceivedAt(sounds, lx, ly);
-        }
+   
+        return Sound.totalPerceivedAt(sounds, lx, ly);
+        
 
-        List<Rock> rocks = new ArrayList<>();
-        for (Sprite s : engine.getSprites()) {
-            if (s instanceof Rock && ((Rock) s).getDepth() == 1)
-                rocks.add((Rock) s);
-        }
 
-        float total = 0f;
-        for (Sound s : sounds) {
-            if (hasLineOfSight(s.getX(), s.getY(), lx, ly, rocks)) {
-                total += s.perceivedAt(lx, ly);
-            }
-            // else: blocked by rock — contributes nothing
-        }
-        return total;
     }
 
     /**
@@ -406,9 +393,15 @@ public class Game {
         float perceived = computePerceivedSound();
         PassiveSonar.draw(perceived, HEIGHT, tick);
 
-        // Radar screen (top-right) — shows remote sub contacts from last ping
-        RadarScreen.draw(WIDTH, HEIGHT, player.getX(), player.getY(),
-                         pingAlpha, radarContacts);
+        // Radar screen (bottom-right) — shows remote sub contacts from last ping
+        
+        List<Rock> foregroundRocks = new ArrayList<>();
+        for (Sprite s : engine.getSprites()){
+            if (s instanceof Rock && ((Rock) s).getDepth() == 1){
+                foregroundRocks.add((Rock) s);
+            }
+        }
+        RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(), pingAlpha, radarContacts, foregroundRocks);
     }
 
     // ── Radar ──────────────────────────────────────────────────────────────────
