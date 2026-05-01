@@ -37,6 +37,20 @@ public class Game {
     private static boolean      rWasDown         = false;
     private static final float  PING_SOUND_STRENGTH = 5000f;
 
+    // ── Radar screen (top-right corner) ───────────────────────────────────────
+    // Stores (playerId, worldX, worldY, pingAlphaAtDetection) for each contact
+    // detected during the last radar ping. Fades out over PING_DURATION_MS.
+    private static final java.util.Map<String, float[]> radarContacts =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    // [0]=worldX [1]=worldY [2]=alpha (we recompute from pingAlpha each frame)
+
+    /**
+     * When true, passive sonar uses ray-casting to check line-of-sight through
+     * rocks before adding a sound's contribution. Set false for the original
+     * unobstructed behaviour.
+     */
+    private static final boolean USE_RAYTRACE_SONAR = true;
+
     // ── Systems ────────────────────────────────────────────────────────────────
     private static GameEngine      engine;
     private static BottomRockLayer bottomLayer;
@@ -98,39 +112,28 @@ public class Game {
 
         try {
             if (mode.equals("--host")) {
-                // Start embedded server then connect as first client
                 netServer = new NetworkServer();
                 netServer.start();
                 System.out.println("Hosting — server started.");
-
-
-                Thread.sleep(300); // wait a bit for server to start before connecting
-
-                //connect client to local server
+                Thread.sleep(300);
                 netClient = new NetworkClient("localhost", "Host");
                 netClient.connect();
-
             } else if (mode.equals("--join") && args.length > 1) {
-                // Connect to hosts IP
-    
                 String ip = args[1];
                 netClient = new NetworkClient(ip, "Player");
                 netClient.connect();
                 System.out.println("Joined server at " + ip);
-
             } else {
-                //For testing purposes
                 System.out.println("Unknown mode — running solo.");
                 multiplayer = false;
             }
         } catch (Exception e) {
-            System.err.println("Fail "+e.getMessage());
+            System.err.println("Fail " + e.getMessage());
             System.err.println("Running w/o network");
             multiplayer = false;
             netClient = null;
             netServer = null;
         }
-
     }
 
     // ── Init ───────────────────────────────────────────────────────────────────
@@ -140,12 +143,8 @@ public class Game {
         StdDraw.setXscale(0, WIDTH);
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
-        String title= multiplayer ? netClient.host : "Solo";
-      
-        
+        String title = multiplayer ? netClient.host : "Solo";
         StdDraw.setTitle(title);
-        
-
     }
 
     private static void setupWorld() {
@@ -176,19 +175,30 @@ public class Game {
             if (multiplayer && netClient != null && netClient.isConnected()) {
                 if (tick % 12 == 0) netClient.sendState(player);
 
-                //Gets sounds from other players and adds them to this world
+                // ── ENGINE SOUND REPLICATION FIX ──────────────────────────────
+                // Broadcast engine sound position+strength every 12 ticks so
+                // remote clients can hear us on their passive sonar.
+                // Previously this was never sent, so remote players were silent.
+                if (tick % 12 == 0) {
+                    netClient.sendSoundEvent(
+                            player.getX(), player.getY(),
+                            engineSound.getStrength(), "engine");
+                }
+
                 netClient.drainSounds(sounds);
 
-                // Drain remote radar pings — start visual animation for each
-                for (Packets.RadarPing ping:netClient.drainPings()) {
-                    sounds.add(new RadarSound(ping.x, ping.y,PING_SOUND_STRENGTH, ping.playerId));
+                for (Packets.RadarPing ping : netClient.drainPings()) {
+                    sounds.add(new RadarSound(ping.x, ping.y, PING_SOUND_STRENGTH, ping.playerId));
                     System.out.println("Remote ping from " + ping.playerId);
                 }
             }
+
             player.update();
+
+            // ── Rock collision ─────────────────────────────────────────────────
+            checkCollisions();
+
             lockCamera();
-
-
             render();
             StdDraw.show();
             StdDraw.pause(16);
@@ -196,6 +206,38 @@ public class Game {
         }
     }
 
+    // ── Collision detection ────────────────────────────────────────────────────
+
+    /**
+     * Check player against all foreground rocks and the seafloor.
+     * On collision, respawn at the spawn point.
+     */
+    private static void checkCollisions() {
+        if (!player.isAlive()) return;
+
+        // Check foreground rocks (depth == 1)
+        for (Sprite s : engine.getSprites()) {
+            if (!(s instanceof Rock)) continue;
+            Rock rock = (Rock) s;
+            if (rock.getDepth() != 1) continue;   // only solid foreground rocks
+            if (player.collidesWithRock(rock)) {
+                System.out.println("Hit a rock! Respawning...");
+                triggerRespawn();
+                return;
+            }
+        }
+
+        // Check seafloor — player Y is in world coords, seafloor top is SEAFLOOR_TOP
+        if (player.getY() <= SEAFLOOR_TOP + player.getCollisionRadius()) {
+            System.out.println("Hit the seafloor! Respawning...");
+            triggerRespawn();
+        }
+    }
+
+    private static void triggerRespawn() {
+        player.respawn(SPAWN_X, SPAWN_Y);
+        engine.setCamera(SPAWN_X - (float) CX, SPAWN_Y - (float) CY);
+    }
 
     private static void lockCamera() {
         engine.setCamera(player.getX() - (float) CX, player.getY() - (float) CY);
@@ -218,7 +260,9 @@ public class Game {
             sounds.add(new RadarSound(player.getX(), player.getY(),
                                       PING_SOUND_STRENGTH, "player_ping"));
 
-            // Tell other players about this ping
+            // Snapshot current remote sub positions as radar contacts
+            updateRadarContacts();
+
             if (multiplayer && netClient != null) {
                 netClient.sendRadarPing(player.getX(), player.getY());
                 netClient.sendSoundEvent(player.getX(), player.getY(),
@@ -239,7 +283,6 @@ public class Game {
             float wy = engine.screenToWorldY(StdDraw.mouseY());
             sounds.add(new Sound(wx, wy, strength, "test") {});
 
-            // Broadcast test sound to other players
             if (multiplayer && netClient != null) {
                 netClient.sendSoundEvent(wx, wy, strength, "test");
             }
@@ -249,10 +292,77 @@ public class Game {
         mouseWasDown = mouseDown;
     }
 
+    /**
+     * Snapshot all known remote sub positions as radar contacts.
+     * Called when the player fires a radar ping.
+     */
+    private static void updateRadarContacts() {
+        radarContacts.clear();
+        if (netClient == null) return;
+        for (Map.Entry<String, Submarine> e : netClient.getRemoteSubs().entrySet()) {
+            Submarine sub = e.getValue();
+            radarContacts.put(e.getKey(),
+                    new float[]{sub.getX(), sub.getY()});
+        }
+    }
+
     private static void updateSounds() {
         for (Sound s : sounds) s.tick();
         Sound.pruneDead(sounds);
         if (!sounds.contains(engineSound)) sounds.add(engineSound);
+    }
+
+    // ── Ray-traced perceived sound ─────────────────────────────────────────────
+
+    /**
+     * Compute total perceived intensity at the player's position.
+     *
+     * If USE_RAYTRACE_SONAR is true, each sound's contribution is blocked
+     * (set to 0) when the straight line from the sound to the player passes
+     * through any foreground Rock. This simulates acoustic shadow zones.
+     */
+    private static float computePerceivedSound() {
+        float lx = player.getX();
+        float ly = player.getY();
+
+        if (!USE_RAYTRACE_SONAR) {
+            return Sound.totalPerceivedAt(sounds, lx, ly);
+        }
+
+        List<Rock> rocks = new ArrayList<>();
+        for (Sprite s : engine.getSprites()) {
+            if (s instanceof Rock && ((Rock) s).getDepth() == 1)
+                rocks.add((Rock) s);
+        }
+
+        float total = 0f;
+        for (Sound s : sounds) {
+            if (hasLineOfSight(s.getX(), s.getY(), lx, ly, rocks)) {
+                total += s.perceivedAt(lx, ly);
+            }
+            // else: blocked by rock — contributes nothing
+        }
+        return total;
+    }
+
+    /**
+     * Returns true if the segment from (x1,y1) to (x2,y2) is NOT blocked by
+     * any rock polygon. We sample N points along the segment and test each.
+     * Not physically exact but fast and visually convincing.
+     */
+    private static boolean hasLineOfSight(float x1, float y1,
+                                           float x2, float y2,
+                                           List<Rock> rocks) {
+        final int SAMPLES = 12;
+        for (int i = 1; i < SAMPLES; i++) {
+            float t  = (float) i / SAMPLES;
+            float px = x1 + t * (x2 - x1);
+            float py = y1 + t * (y2 - y1);
+            for (Rock r : rocks) {
+                if (r.contains(px, py)) return false;
+            }
+        }
+        return true;
     }
 
     // ── Render ─────────────────────────────────────────────────────────────────
@@ -272,32 +382,33 @@ public class Game {
 
         bottomLayer.draw(engine);
 
-
         if (multiplayer && netClient != null) {
             Map<String, Submarine> remotes = netClient.getRemoteSubs();
             for (Submarine remote : remotes.values()) {
                 remote.draw(engine);
             }
         }
+
         // Fog of war
         HUD.drawFog(HEIGHT, WIDTH, CX, CY);
 
-        // Radar outlines
+        // Radar outlines (rocks)
         float pingAlpha = pingAlpha();
         if (pingAlpha > 0f) drawRadarOutlines(pingAlpha);
 
         // Local player submarine
         player.drawCentred(CX, CY);
 
-        // Remote submarines
-
-
         // HUD
         HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);
 
-        // Passive sonar
-        float perceived = Sound.totalPerceivedAt(sounds, player.getX(), player.getY());
+        // Passive sonar (ray-traced)
+        float perceived = computePerceivedSound();
         PassiveSonar.draw(perceived, HEIGHT, tick);
+
+        // Radar screen (top-right) — shows remote sub contacts from last ping
+        RadarScreen.draw(WIDTH, HEIGHT, player.getX(), player.getY(),
+                         pingAlpha, radarContacts);
     }
 
     // ── Radar ──────────────────────────────────────────────────────────────────
@@ -330,5 +441,7 @@ public class Game {
         System.out.println("    --solo          offline (default)");
         System.out.println("    --host          host a game");
         System.out.println("    --join <ip>     join a game");
+        System.out.println();
+        System.out.println("  Ray-trace sonar: " + USE_RAYTRACE_SONAR);
     }
 }
