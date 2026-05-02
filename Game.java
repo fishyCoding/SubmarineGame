@@ -147,9 +147,11 @@ public class Game {
         StdDraw.setTitle(title);
     }
 
+    private static final String SEAFLOOR_FILE = "seafloor.txt";
+
     private static void setupWorld() {
         engine = new GameEngine(DATA_FILE);
-        bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, 120, SEAFLOOR_TOP, SEAFLOOR_BASE);
+        bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, SEAFLOOR_TOP, SEAFLOOR_BASE, SEAFLOOR_FILE);
         water = new Water(HEIGHT, WIDTH, SURFACE_LEVEL, engine);
         engine.setCamera(SPAWN_X - (float) CX, SPAWN_Y - (float) CY);
     }
@@ -227,8 +229,9 @@ public class Game {
             }
         }
 
-        // Check seafloor — player Y is in world coords, seafloor top is SEAFLOOR_TOP
-        if (player.getY() <= SEAFLOOR_TOP + player.getCollisionRadius()) {
+        // Check seafloor — interpolate the actual floor height at the player's X
+        float floorY = bottomLayer.getFloorYAt(player.getX());
+        if (player.getY() <= floorY + player.getCollisionRadius()) {
             System.out.println("Hit the seafloor! Respawning...");
             triggerRespawn();
         }
