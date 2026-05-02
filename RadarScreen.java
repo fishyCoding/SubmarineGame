@@ -18,7 +18,6 @@ import java.util.Map;
  */
 public class RadarScreen {
 
-    // ── Layout ─────────────────────────────────────────────────────────────────
     private static final int MARGIN   = 14;   // pixels from right / top edge
     private static final int RADIUS   = 90;   // screen-radius of the circular display
     private static final int DIAMETER = RADIUS * 2;
@@ -28,7 +27,6 @@ public class RadarScreen {
     // World range represented by the full radar radius
     private static final float WORLD_RADIUS = 2000f;
 
-    // ── Palette ────────────────────────────────────────────────────────────────
     private static final Color COL_BG        = new Color(  3, 14,  6);
     private static final Color COL_BORDER    = new Color( 20, 80, 35);
     private static final Color COL_GRID      = new Color( 10, 45, 18);
