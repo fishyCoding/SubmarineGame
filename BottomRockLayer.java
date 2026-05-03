@@ -9,10 +9,10 @@ import java.io.*;
  * Control points are managed via SeafloorPoint sprites in the editor (Main).
  * Collision uses getFloorYAt(x) which linearly interpolates between points.
  */
-public class BottomRockLayer{
+public class BottomRockLayer {
 
-    private static final int[]  BASE    = {19, 19, 19};   // matches Rock BG_BASE #515151
-    private static final int[]  OUTLINE = { 0,  0,  0};   // matches Rock BG_SHADOW
+    private static final java.awt.Color BASE    = java.awt.Color.decode("#131313");
+    private static final java.awt.Color OUTLINE = java.awt.Color.decode("#000000");
 
     public  static final int    NUM_POINTS = 30;
     private static final int    CANVAS_W   = 1600;
@@ -125,11 +125,11 @@ public class BottomRockLayer{
         }
 
         // Fill
-        StdDraw.setPenColor(BASE[0], BASE[1], BASE[2]);
+        StdDraw.setPenColor(BASE);
         StdDraw.filledPolygon(xs, ys);
 
         // Single outline along the top edge only
-        StdDraw.setPenColor(OUTLINE[0], OUTLINE[1], OUTLINE[2]);
+        StdDraw.setPenColor(OUTLINE);
         StdDraw.setPenRadius(0.01);
         for (int i = 0; i < visible - 1; i++)
             StdDraw.line(xs[i], ys[i], xs[i + 1], ys[i + 1]);
