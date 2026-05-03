@@ -12,6 +12,7 @@ import java.util.*;
 public class GameEngine {
 
     private final List<Sprite> sprites;
+    private final List<Sprite> seafloorPoints; // never saved, always rendered/clickable
     private final String       dataFile;
 
     private float cameraX;
@@ -20,11 +21,17 @@ public class GameEngine {
     // ── Construction ───────────────────────────────────────────────────────────
 
     public GameEngine(String dataFile) {
-        this.sprites  = new ArrayList<>();
-        this.dataFile = dataFile;
-        this.cameraX  = 0;
-        this.cameraY  = 0;
+        this.sprites        = new ArrayList<>();
+        this.seafloorPoints = new ArrayList<>();
+        this.dataFile       = dataFile;
+        this.cameraX        = 0;
+        this.cameraY        = 0;
         loadSprites();
+    }
+
+    /** Add a seafloor handle — included in getSprites() but never written to disk. */
+    public void addSeafloorPoint(Sprite s) {
+        seafloorPoints.add(s);
     }
 
     // ── Sprite I/O ─────────────────────────────────────────────────────────────
@@ -94,6 +101,9 @@ public class GameEngine {
     }
 
     public Sprite getSpriteAt(float worldX, float worldY) {
+        // Check seafloor points first (small targets, prioritise them)
+        for (int i = seafloorPoints.size() - 1; i >= 0; i--)
+            if (seafloorPoints.get(i).contains(worldX, worldY)) return seafloorPoints.get(i);
         for (int i = sprites.size() - 1; i >= 0; i--)
             if (sprites.get(i).contains(worldX, worldY)) return sprites.get(i);
         return null;
@@ -105,7 +115,15 @@ public class GameEngine {
         System.out.println("Cleared all sprites.");
     }
 
-    public List<Sprite> getSprites() { return sprites; }
+    /** All sprites + seafloor handles — used for rendering and hit-testing. */
+    public List<Sprite> getSprites() {
+        List<Sprite> all = new ArrayList<>(sprites);
+        all.addAll(seafloorPoints);
+        return all;
+    }
+
+    /** Only the saved rock sprites — used internally for serialization. */
+    public List<Sprite> getRocks() { return sprites; }
 
     // ── Camera ─────────────────────────────────────────────────────────────────
 
