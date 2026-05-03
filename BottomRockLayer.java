@@ -1,162 +1,57 @@
-import java.io.*;
+import java.awt.Color;
 
 /**
- * BottomRockLayer — seafloor made of 30 draggable control points.
+ * SeafloorPoint — a draggable handle for one control point on the BottomRockLayer.
  *
- * Rendering matches the Rock style: solid filled polygon + single dark outline
- * along the top edge. No drop shadows, depth bands, or crack textures.
- *
- * Control points are managed via SeafloorPoint sprites in the editor (Main).
- * Collision uses getFloorYAt(x) which linearly interpolates between points.
+ * Behaves like any other Sprite so Main can select and drag it the same way
+ * it selects and drags Rocks. It doesn't own the coordinate data — it just
+ * reads/writes through to BottomRockLayer.
  */
-public class BottomRockLayer {
+public class SeafloorPoint extends Sprite {
 
-    private static final int[]  BASE    = {19, 19, 19};   // matches Rock BG_BASE #131313
-    private static final int[]  OUTLINE = { 0,  0,  0};   // matches Rock BG_SHADOW
+    private final BottomRockLayer floor;
+    private final int index;
+    private static final float HIT_RADIUS = 12f; // screen pixels for click detection
 
-    public  static final int    NUM_POINTS = 30;
-    private static final int    CANVAS_W   = 1600;
-
-    private final float   seafloorBase;
-    private final float[] worldX;
-    private final float[] worldY;
-    private final String  saveFile;
-
-    public BottomRockLayer(float worldStart, float worldEnd,
-                           float seafloorTop, float seafloorBase,
-                           String saveFile) {
-        this.seafloorBase = seafloorBase;
-        this.saveFile     = saveFile;
-        this.worldX       = new float[NUM_POINTS];
-        this.worldY       = new float[NUM_POINTS];
-
-        float step = (worldEnd - worldStart) / (NUM_POINTS - 1);
-        for (int i = 0; i < NUM_POINTS; i++) {
-            worldX[i] = worldStart + i * step;
-            worldY[i] = seafloorTop;
-        }
-
-        load();
+    public SeafloorPoint(BottomRockLayer floor, int index) {
+        super(floor.getPointWorldX(index), floor.getPointWorldY(index), Color.CYAN);
+        this.floor = floor;
+        this.index = index;
     }
 
-    // ── Persistence ────────────────────────────────────────────────────────────
-
-    public void save() {
-        try (PrintWriter pw = new PrintWriter(new FileWriter(saveFile))) {
-            pw.println("# BottomRockLayer control points — worldX worldY per line");
-            for (int i = 0; i < NUM_POINTS; i++)
-                pw.printf("%.2f %.2f%n", worldX[i], worldY[i]);
-        } catch (IOException e) {
-            System.err.println("Could not save seafloor: " + e.getMessage());
-        }
+    /** Sync this sprite's x/y from the floor array (call after any movePoint). */
+    public void syncFromFloor() {
+        this.x = floor.getPointWorldX(index);
+        this.y = floor.getPointWorldY(index);
     }
 
-    private void load() {
-        try (BufferedReader br = new BufferedReader(new FileReader(saveFile))) {
-            int idx = 0;
-            String line;
-            while ((line = br.readLine()) != null && idx < NUM_POINTS) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) continue;
-                String[] parts = line.split("\\s+");
-                if (parts.length >= 2) {
-                    worldX[idx] = Float.parseFloat(parts[0]);
-                    worldY[idx] = Float.parseFloat(parts[1]);
-                    idx++;
-                }
-            }
-        } catch (FileNotFoundException e) {
-            System.out.println("No seafloor file — using defaults.");
-        } catch (IOException | NumberFormatException e) {
-            System.err.println("Error loading seafloor: " + e.getMessage());
-        }
+    /** Push this sprite's y back to the floor array. */
+    @Override
+    public void setPosition(float x, float y) {
+        floor.movePoint(index, y);
+        syncFromFloor();
     }
 
-    // ── Point access (used by SeafloorPoint) ───────────────────────────────────
-
-    public float getPointWorldX(int i) { return worldX[i]; }
-    public float getPointWorldY(int i) { return worldY[i]; }
-
-    /** Move a control point's Y (X stays fixed). No clamp — move freely. */
-    public void movePoint(int index, float wy) {
-        if (index >= 0 && index < NUM_POINTS)
-            worldY[index] = wy;
+    @Override
+    public boolean contains(float px, float py) {
+        // Hit test in world space — but we want a fixed screen-pixel radius.
+        // We can't access the engine here, so we use a world-space approximation.
+        float dx = px - this.x;
+        float dy = py - this.y;
+        return dx * dx + dy * dy <= HIT_RADIUS * HIT_RADIUS;
     }
 
-    // ── Collision ──────────────────────────────────────────────────────────────
-
-    /** Linearly interpolate the floor Y at world X. Used for collision. */
-    public float getFloorYAt(float wx) {
-        if (wx <= worldX[0])              return worldY[0];
-        if (wx >= worldX[NUM_POINTS - 1]) return worldY[NUM_POINTS - 1];
-
-        int lo = 0, hi = NUM_POINTS - 2;
-        while (lo < hi) {
-            int mid = (lo + hi) / 2;
-            if (worldX[mid + 1] < wx) lo = mid + 1;
-            else                      hi = mid;
-        }
-        float t = (wx - worldX[lo]) / (worldX[lo + 1] - worldX[lo]);
-        return worldY[lo] + t * (worldY[lo + 1] - worldY[lo]);
-    }
-
-    // ── Rendering ──────────────────────────────────────────────────────────────
-
+    @Override
     public void draw(GameEngine engine) {
-        int first = 0, last = NUM_POINTS - 1;
-        while (first < last - 1 && engine.worldToScreenX(worldX[first + 1]) < -50) first++;
-        while (last  > first + 1 && engine.worldToScreenX(worldX[last  - 1]) > CANVAS_W + 50) last--;
-
-        int visible = last - first + 1;
-        if (visible < 2) return;
-
-        int      total = visible * 2;
-        double[] xs    = new double[total];
-        double[] ys    = new double[total];
-
-        for (int i = 0; i < visible; i++) {
-            xs[i] = engine.worldToScreenX(worldX[first + i]);
-            ys[i] = engine.worldToScreenY(worldY[first + i]);
-        }
-        double baseY = engine.worldToScreenY(seafloorBase);
-        for (int i = 0; i < visible; i++) {
-            xs[visible + i] = engine.worldToScreenX(worldX[last - i]);
-            ys[visible + i] = baseY;
-        }
-
-        // Fill
-        StdDraw.setPenColor(BASE[0], BASE[1], BASE[2]);
-        StdDraw.filledPolygon(xs, ys);
-
-        // Single outline along the top edge only
-        StdDraw.setPenColor(OUTLINE[0], OUTLINE[1], OUTLINE[2]);
-        StdDraw.setPenRadius(0.01);
-        for (int i = 0; i < visible - 1; i++)
-            StdDraw.line(xs[i], ys[i], xs[i + 1], ys[i + 1]);
-
+        double sx = engine.worldToScreenX(x);
+        double sy = engine.worldToScreenY(y);
+        StdDraw.setPenColor(78, 92, 112); // same as HILIT in BottomRockLayer
         StdDraw.setPenRadius(0.002);
+        StdDraw.circle(sx, sy, 6);
     }
 
-    /** Green radar outline — called by Game during a ping. */
-    public void drawRadarOutline(GameEngine engine, float alpha) {
-        if (alpha <= 0f) return;
-        int first = 0, last = NUM_POINTS - 1;
-        while (first < last - 1 && engine.worldToScreenX(worldX[first + 1]) < -50) first++;
-        while (last  > first + 1 && engine.worldToScreenX(worldX[last  - 1]) > CANVAS_W + 50) last--;
-
-        int visible = last - first + 1;
-        if (visible < 2) return;
-
-        int a = Math.min(255, (int)(alpha * 255));
-        StdDraw.setPenColor(new java.awt.Color(0, Math.min(255, a), 0));
-        StdDraw.setPenRadius(0.003);
-        for (int i = 0; i < visible - 1; i++) {
-            StdDraw.line(
-                engine.worldToScreenX(worldX[first + i]),
-                engine.worldToScreenY(worldY[first + i]),
-                engine.worldToScreenX(worldX[first + i + 1]),
-                engine.worldToScreenY(worldY[first + i + 1]));
-        }
-        StdDraw.setPenRadius(0.002);
-    }
+    // SeafloorPoints are never saved to sprites.txt
+    @Override public String serialize() { return ""; }
+    @Override public String getType()   { return "SEAFLOORPOINT"; }
+    @Override public String toString()  { return "SeafloorPoint[" + index + "]"; }
 }
