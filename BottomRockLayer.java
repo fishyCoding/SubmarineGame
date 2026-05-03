@@ -53,7 +53,7 @@ public class BottomRockLayer {
                            String saveFile) {
         this.seafloorBase = seafloorBase;
         this.minY         = seafloorBase + 20f;   // can't go below the base
-        this.maxY         = seafloorTop  + 300f;  // can't go too high
+        this.maxY         = seafloorTop  + 800f;  // can't go too high
         this.saveFile     = saveFile;
         this.worldX       = new float[NUM_POINTS];
         this.worldY       = new float[NUM_POINTS];
