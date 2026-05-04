@@ -70,4 +70,31 @@ public class Packets {
         public float  x;
         public float  y;
     }
+
+    // ── Torpedo position — UDP (~every tick while in flight) ──────────────────
+    /**
+     * Broadcast by the firing client each tick so others can render the torpedo.
+     * alive=false means the torpedo just died (detonated or hit something) and
+     * receivers should remove their visual copy.
+     */
+    public static class TorpedoState {
+        public String  playerId;  // who fired it
+        public float   x;
+        public float   y;
+        public float   angle;
+        public boolean alive;
+    }
+
+    // ── Torpedo detonation — TCP (reliable) ───────────────────────────────────
+    /**
+     * Sent once when the torpedo explodes. Receivers check if they are within
+     * blastRadius and apply damage if so.
+     */
+    public static class TorpedoDetonate {
+        public String playerId;    // who fired it
+        public float  x;           // blast world X
+        public float  y;           // blast world Y
+        public float  blastRadius;
+        public int    damage;
+    }
 }

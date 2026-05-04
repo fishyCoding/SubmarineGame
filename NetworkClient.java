@@ -48,6 +48,13 @@ public class NetworkClient {
     // Remote submarines keyed by player ID — read by main thread, written by network thread
     private final Map<String, Submarine> remoteSubs = new ConcurrentHashMap<>();
 
+    // Remote torpedo positions — keyed by player ID, null entry = torpedo gone
+    private final Map<String, Packets.TorpedoState> remoteTorpedoStates = new ConcurrentHashMap<>();
+
+    // Pending detonations to apply this frame
+    private final List<Packets.TorpedoDetonate> pendingDetonations =
+            java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
     // Pending sound/ping events — drained into the game's sound list each frame
     private final List<Packets.SoundEvent> pendingSounds =
             java.util.Collections.synchronizedList(new java.util.ArrayList<>());
@@ -149,6 +156,38 @@ public class NetworkClient {
         client.sendTCP(ping);
     }
 
+    /**
+     * Broadcast torpedo position via UDP every tick while in flight.
+     * Set alive=false on the last send (after explode()) so others remove it.
+     */
+    public void sendTorpedoState(float x, float y, float angle, boolean alive) {
+        if (!connected || myId == null) return;
+
+        Packets.TorpedoState t = new Packets.TorpedoState();
+        t.playerId = myId;
+        t.x        = x;
+        t.y        = y;
+        t.angle    = angle;
+        t.alive    = alive;
+        client.sendUDP(t);
+    }
+
+    /**
+     * Broadcast torpedo detonation via TCP (reliable).
+     * Other clients will check if they're in blast radius and take damage.
+     */
+    public void sendTorpedoDetonate(float x, float y, float blastRadius, int damage) {
+        if (!connected || myId == null) return;
+
+        Packets.TorpedoDetonate d = new Packets.TorpedoDetonate();
+        d.playerId   = myId;
+        d.x          = x;
+        d.y          = y;
+        d.blastRadius = blastRadius;
+        d.damage     = damage;
+        client.sendTCP(d);
+    }
+
     // ── Draining pending events into the game ─────────────────────────────────
 
     /**
@@ -194,6 +233,23 @@ public class NetworkClient {
     /** Get a live view of all remote submarines (read-only from game loop). */
     public Map<String, Submarine> getRemoteSubs() {
         return remoteSubs;
+    }
+
+    /** Get a live view of remote torpedo states (read-only from game loop). */
+    public Map<String, Packets.TorpedoState> getRemoteTorpedoStates() {
+        return remoteTorpedoStates;
+    }
+
+    /**
+     * Call once per frame. Returns all pending detonation packets and clears
+     * the queue. Game loop should check player distance and apply damage.
+     */
+    public List<Packets.TorpedoDetonate> drainDetonations() {
+        synchronized (pendingDetonations) {
+            List<Packets.TorpedoDetonate> copy = new java.util.ArrayList<>(pendingDetonations);
+            pendingDetonations.clear();
+            return copy;
+        }
     }
 
     // ── Listener (runs on Kryonet background thread) ──────────────────────────
@@ -254,6 +310,24 @@ public class NetworkClient {
             // ── Remote radar ping ─────────────────────────────────────────────
             if (object instanceof Packets.RadarPing) {
                 pendingPings.add((Packets.RadarPing) object);
+                return;
+            }
+
+            // ── Remote torpedo position ───────────────────────────────────────
+            if (object instanceof Packets.TorpedoState) {
+                Packets.TorpedoState t = (Packets.TorpedoState) object;
+                if (t.playerId == null) return;
+                if (t.alive) {
+                    remoteTorpedoStates.put(t.playerId, t);
+                } else {
+                    remoteTorpedoStates.remove(t.playerId);
+                }
+                return;
+            }
+
+            // ── Remote torpedo detonation ─────────────────────────────────────
+            if (object instanceof Packets.TorpedoDetonate) {
+                pendingDetonations.add((Packets.TorpedoDetonate) object);
             }
         }
     }

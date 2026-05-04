@@ -61,9 +61,11 @@ public class Game {
     private static final List<Sound> sounds      = new ArrayList<>();
     private static EngineSound       engineSound;
 
+    // ── Torpedo system ─────────────────────────────────────────────────────────
+    private static TorpedoSystem torpedoSystem;
+
     // Mouse-hold test sound tracking
     private static boolean  mouseWasDown   = false;
-    private static long     mousePressedMs = 0;
 
     // ── Networking ─────────────────────────────────────────────────────────────
     private static NetworkClient   netClient  = null;
@@ -86,6 +88,7 @@ public class Game {
         setupNetwork(args);
         setupWindow();
         setupSounds();
+        torpedoSystem = new TorpedoSystem(WIDTH);
         printControls();
         gameLoop();
     }
@@ -177,14 +180,34 @@ public class Game {
             if (multiplayer && netClient != null && netClient.isConnected()) {
                 if (tick % 12 == 0) netClient.sendState(player);
 
-                // ── ENGINE SOUND REPLICATION FIX ──────────────────────────────
-                // Broadcast engine sound position+strength every 12 ticks so
-                // remote clients can hear us on their passive sonar.
-                // Previously this was never sent, so remote players were silent.
                 if (tick % 12 == 0) {
                     netClient.sendSoundEvent(
                             player.getX(), player.getY(),
                             engineSound.getStrength(), "engine");
+                }
+
+                // ── Torpedo replication ────────────────────────────────────────
+                if (torpedoSystem.hasTorpedo()) {
+                    Torpedo t = torpedoSystem.getTorpedo();
+                    netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), true);
+                } else if (torpedoSystem.getTorpedo() != null
+                        && torpedoSystem.getTorpedo().hasExploded()) {
+                    // One final packet to tell others it's gone
+                    Torpedo t = torpedoSystem.getTorpedo();
+                    netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), false);
+                    netClient.sendTorpedoDetonate(
+                            t.getX(), t.getY(), t.getBlastRadius(), t.getDamage());
+                }
+
+                // ── Drain remote detonations — apply damage to local player ───
+                for (Packets.TorpedoDetonate d : netClient.drainDetonations()) {
+                    float dx = player.getX() - d.x;
+                    float dy = player.getY() - d.y;
+                    if (dx * dx + dy * dy <= d.blastRadius * d.blastRadius) {
+                        player.takeDamage(d.damage);
+                        System.out.println("Hit by remote torpedo from " + d.playerId + "!");
+                    }
+                    // Remove the visual torpedo for that player
                 }
 
                 netClient.drainSounds(sounds);
@@ -196,6 +219,23 @@ public class Game {
             }
 
             player.update();
+
+            // ── Torpedo update ─────────────────────────────────────────────────
+            if (torpedoSystem.hasTorpedo()) {
+                float mwx = engine.screenToWorldX(StdDraw.mouseX());
+                float mwy = engine.screenToWorldY(StdDraw.mouseY());
+
+                List<Rock> fgRocks = new ArrayList<>();
+                for (Sprite s : engine.getSprites())
+                    if (s instanceof Rock && ((Rock) s).getDepth() == 1)
+                        fgRocks.add((Rock) s);
+
+                Map<String, Submarine> remotes = (multiplayer && netClient != null)
+                        ? netClient.getRemoteSubs()
+                        : new java.util.HashMap<>();
+
+                torpedoSystem.update(mwx, mwy, fgRocks, bottomLayer, remotes, player);
+            }
 
             // ── Rock collision ─────────────────────────────────────────────────
             checkCollisions();
@@ -265,6 +305,7 @@ public class Game {
 
             // Snapshot current remote sub positions as radar contacts
             updateRadarContacts();
+            torpedoSystem.setContacts(radarContacts);
 
             if (multiplayer && netClient != null) {
                 netClient.sendRadarPing(player.getX(), player.getY());
@@ -275,22 +316,20 @@ public class Game {
         }
         rWasDown = rDown;
 
-        // ── Mouse hold — test sound ────────────────────────────────────────────
+        // ── Target selection (number keys) ────────────────────────────────────
+        torpedoSystem.handleTargetInput();
+
+        // ── Mouse click — launch or detonate torpedo ───────────────────────────
         boolean mouseDown = StdDraw.isMousePressed();
         if (mouseDown && !mouseWasDown) {
-            mousePressedMs = System.currentTimeMillis();
-        } else if (!mouseDown && mouseWasDown) {
-            long  heldMs   = System.currentTimeMillis() - mousePressedMs;
-            float strength = Math.min(8000f, heldMs * 3.5f);
-            float wx = engine.screenToWorldX(StdDraw.mouseX());
-            float wy = engine.screenToWorldY(StdDraw.mouseY());
-            sounds.add(new Sound(wx, wy, strength, "test") {});
-
-            if (multiplayer && netClient != null) {
-                netClient.sendSoundEvent(wx, wy, strength, "test");
+            if (!torpedoSystem.hasTorpedo()) {
+                torpedoSystem.launchTorpedo(player.getX(), player.getY(), player.getAngle());
+            } else {
+                Map<String, Submarine> remotes = (multiplayer && netClient != null)
+                        ? netClient.getRemoteSubs()
+                        : new java.util.HashMap<>();
+                torpedoSystem.detonateManual(remotes, player);
             }
-            System.out.printf("Test sound spawned at (%.0f, %.0f) strength=%.0f%n",
-                    wx, wy, strength);
         }
         mouseWasDown = mouseDown;
     }
@@ -377,6 +416,11 @@ public class Game {
             for (Submarine remote : remotes.values()) {
                 remote.draw(engine);
             }
+            // Draw remote torpedoes
+            for (Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values()) {
+                // Render a visual-only torpedo shell at the reported position
+                new Torpedo(t.playerId, t.x, t.y, t.angle).draw(engine);
+            }
         }
 
         // Fog of war
@@ -388,6 +432,9 @@ public class Game {
 
         // Local player submarine
         player.drawCentred(CX, CY);
+
+        // Torpedo
+        torpedoSystem.draw(engine);
 
         // HUD
         HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);

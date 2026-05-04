@@ -76,6 +76,8 @@ public class NetworkServer {
         kryo.register(Packets.SubmarineState.class);
         kryo.register(Packets.SoundEvent.class);
         kryo.register(Packets.RadarPing.class);
+        kryo.register(Packets.TorpedoState.class);
+        kryo.register(Packets.TorpedoDetonate.class);
     }
 
     // ── Listener ──────────────────────────────────────────────────────────────
@@ -148,6 +150,22 @@ public class NetworkServer {
                 ping.playerId = connectedPlayers.get(conn.getID());
                 if (ping.playerId == null) return;
                 server.sendToAllExceptTCP(conn.getID(), ping);
+            }
+
+            // ── Torpedo position (UDP) ─────────────────────────────────────────
+            if (object instanceof Packets.TorpedoState) {
+                Packets.TorpedoState t = (Packets.TorpedoState) object;
+                t.playerId = connectedPlayers.get(conn.getID());
+                if (t.playerId == null) return;
+                server.sendToAllExceptUDP(conn.getID(), t);
+            }
+
+            // ── Torpedo detonation (TCP) ───────────────────────────────────────
+            if (object instanceof Packets.TorpedoDetonate) {
+                Packets.TorpedoDetonate d = (Packets.TorpedoDetonate) object;
+                d.playerId = connectedPlayers.get(conn.getID());
+                if (d.playerId == null) return;
+                server.sendToAllExceptTCP(conn.getID(), d);
             }
         }
     }
