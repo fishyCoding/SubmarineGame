@@ -38,14 +38,22 @@ public class Torpedo extends Character {
     }
 
     /**
-     * Steer toward the mouse world position and move.
-     * Call once per tick while the torpedo is alive.
+     * Steer toward the direction defined by the angle from screen center to mouse,
+     * then move. Call once per tick while the torpedo is alive.
+     *
+     * @param mouseScreenX  mouse X in screen pixels
+     * @param mouseScreenY  mouse Y in screen pixels
+     * @param screenCX      screen center X (WIDTH / 2)
+     * @param screenCY      screen center Y (HEIGHT / 2)
      */
-    public void update(float mouseWX, float mouseWY) {
+    public void update(double mouseScreenX, double mouseScreenY,
+                       double screenCX, double screenCY) {
         if (!alive) return;
 
-        // Angle from torpedo to mouse
-        double targetAngle = Math.toDegrees(Math.atan2(mouseWY - y, mouseWX - x));
+        // Angle from screen center to mouse — this is a stable world direction
+        // regardless of where the camera is
+        double targetAngle = Math.toDegrees(
+                Math.atan2(mouseScreenY - screenCY, mouseScreenX - screenCX));
 
         // Shortest angular delta
         double delta = targetAngle - angle;
@@ -59,12 +67,12 @@ public class Torpedo extends Character {
         angle += (float) delta;
         angle  = angle % 360;
 
-        // Recompute velocity to maintain constant speed
+        // Recompute velocity at constant speed
         double rad = Math.toRadians(angle);
         vx = (float)(Math.cos(rad) * SPEED);
         vy = (float)(Math.sin(rad) * SPEED);
 
-        super.update(); // x += vx; y += vy
+        super.update();
     }
 
     /** Detonate — marks torpedo as dead. Caller checks blast radius for damage. */

@@ -85,14 +85,15 @@ public class TorpedoSystem {
      * @param floor     seafloor for collision
      * @return list of player IDs that were hit (empty if none)
      */
-    public List<String> update(float mouseWX, float mouseWY,
+    public List<String> update(double mouseScreenX, double mouseScreenY,
+                               double screenCX, double screenCY,
                                List<Rock> rocks, BottomRockLayer floor,
                                Map<String, Submarine> remoteSubs,
                                Submarine localPlayer) {
         List<String> hits = new ArrayList<>();
         if (!hasTorpedo()) return hits;
 
-        torpedo.update(mouseWX, mouseWY);
+        torpedo.update(mouseScreenX, mouseScreenY, screenCX, screenCY);
 
         // Rock collision
         for (Rock rock : rocks) {

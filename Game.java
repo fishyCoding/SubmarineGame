@@ -222,9 +222,6 @@ public class Game {
 
             // ── Torpedo update ─────────────────────────────────────────────────
             if (torpedoSystem.hasTorpedo()) {
-                float mwx = engine.screenToWorldX(StdDraw.mouseX());
-                float mwy = engine.screenToWorldY(StdDraw.mouseY());
-
                 List<Rock> fgRocks = new ArrayList<>();
                 for (Sprite s : engine.getSprites())
                     if (s instanceof Rock && ((Rock) s).getDepth() == 1)
@@ -234,7 +231,9 @@ public class Game {
                         ? netClient.getRemoteSubs()
                         : new java.util.HashMap<>();
 
-                torpedoSystem.update(mwx, mwy, fgRocks, bottomLayer, remotes, player);
+                torpedoSystem.update(
+                        StdDraw.mouseX(), StdDraw.mouseY(), CX, CY,
+                        fgRocks, bottomLayer, remotes, player);
             }
 
             // ── Rock collision ─────────────────────────────────────────────────
