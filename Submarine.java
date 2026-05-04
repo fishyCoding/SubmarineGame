@@ -11,7 +11,7 @@ public class Submarine extends Character {
     private static final float VERTICAL_ACCEL = 0.30f;  // Q/E  world-units / tick²
     private static final float DRAG = 0.04f;
     private static final float VERTICAL_DRAG = 0.06f;
-    private static final float MAX_SPEED = 6f;
+    private static final float MAX_SPEED = 8f;
 
     // Rudder constants
     private static final float RUDDER_RATE = 0.5f;   // dgs per tick for turning

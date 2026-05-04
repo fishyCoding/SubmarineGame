@@ -17,8 +17,8 @@ import java.util.Map;
 public class Game {
 
     // ── Canvas ─────────────────────────────────────────────────────────────────
-    private static final int    WIDTH         = 1300;
-    private static final int    HEIGHT        = 800;
+    private static final int    WIDTH         = 750;
+    private static final int    HEIGHT        = 400;
 
     // ── World ──────────────────────────────────────────────────────────────────
     private static final float  SURFACE_LEVEL = 0f;
@@ -35,7 +35,7 @@ public class Game {
     private static final long   PING_DURATION_MS = 2500;
     private static long         pingStartMs      = -1;
     private static boolean      rWasDown         = false;
-    private static final float  PING_SOUND_STRENGTH = 5000f;
+    private static final float  PING_SOUND_STRENGTH = 10000f;
 
     // ── Radar screen (top-right corner) ───────────────────────────────────────
     // Stores (playerId, worldX, worldY, pingAlphaAtDetection) for each contact

@@ -25,7 +25,8 @@ public class RadarScreen {
 
 
     // World range represented by the full radar radius
-    private static final float WORLD_RADIUS = 2000f;
+    private static final float WORLD_RADIUS = 8000f;
+
 
     private static final Color COL_BG        = new Color(  3, 14,  6);
     private static final Color COL_BORDER    = new Color( 20, 80, 35);
@@ -76,6 +77,8 @@ public class RadarScreen {
         StdDraw.setPenRadius(0.003);
         StdDraw.circle(cx, cy, RADIUS);
         StdDraw.setPenRadius(0.002);
+                // create new map of contacts that filters out those without line of sight
+
 
         // ── Sweep line — only visible when a ping is fresh ─────────────────────
         if (pingAlpha > 0f) {
@@ -104,9 +107,6 @@ public class RadarScreen {
             StdDraw.setPenRadius(0.002);
         }
 
-        // ── Player dot (always centred) ────────────────────────────────────────
-        StdDraw.setPenColor(COL_PLAYER);
-        StdDraw.filledCircle(cx, cy, 3.5);
 
         // ── Contacts — only shown/faded when a ping is active ─────────────────
         if (pingAlpha > 0f && contacts != null && !contacts.isEmpty()) {
@@ -115,10 +115,10 @@ public class RadarScreen {
             for (Map.Entry<String, float[]> entry : contacts.entrySet()) {
                 float[] pos = entry.getValue();
                 
-                // --- LINE OF SIGHT CHECK ---
-                // If a rock blocks the path between the player and the contact, do not render this blip
+                //check line of sight
+
                 if (!hasLineOfSight(playerX, playerY, pos[0], pos[1], rocks)) {
-                    continue;
+                    continue; // skip this contact if no line of sight
                 }
 
                 float dx = pos[0] - playerX;
@@ -166,12 +166,7 @@ public class RadarScreen {
             }
         }
 
-        // ── "No contacts" message when panel is idle ───────────────────────────
-        if (pingAlpha <= 0f) {
-            StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 9));
-            StdDraw.setPenColor(new Color(0, 60, 25));
-            StdDraw.text(cx, cy, "NO SIGNAL");
-        }
+
 
         // ── Title label above panel ────────────────────────────────────────────
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 10));
