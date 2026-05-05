@@ -79,4 +79,9 @@ public class TorpedoSystem {
     public void draw(GameEngine engine) {
         if (hasTorpedo()) torpedo.draw(engine);
     }
+
+    /** Null out the torpedo reference after it has exploded and been handled. */
+    public void resetTorpedo() {
+        torpedo = null;
+    }
 }
