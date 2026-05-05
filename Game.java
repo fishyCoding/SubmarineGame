@@ -95,7 +95,7 @@ public class Game {
         setupNetwork(args);
         setupWindow();
         setupSounds();
-        torpedoSystem = new TorpedoSystem();
+        torpedoSystem = new TorpedoSystem(WIDTH);
         printControls();
         gameLoop();
     }
@@ -317,7 +317,7 @@ public class Game {
                 contactPos.clear();
                 contactIds.addAll(radarContacts.keySet());
                 contactPos.putAll(radarContacts);
-                selectedIdx = contactIds.isEmpty() ? -1 : 0;
+                selectedIdx = -1;   // nothing selected until player presses a number key
             }
 
             if (multiplayer && netClient != null) {
@@ -352,6 +352,13 @@ public class Game {
         // Clear contact list once torpedo is gone
         if (!torpedoSystem.hasTorpedo() && torpedoSystem.getTorpedo() != null
                 && torpedoSystem.getTorpedo().hasExploded()) {
+            contactIds.clear();
+            contactPos.clear();
+            selectedIdx = -1;
+        }
+
+        // Also clear contacts once the radar fades and no torpedo is in flight
+        if (pingAlpha() == 0f && !torpedoSystem.hasTorpedo()) {
             contactIds.clear();
             contactPos.clear();
             selectedIdx = -1;
