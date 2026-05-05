@@ -17,8 +17,8 @@ import java.util.Map;
 public class Game {
 
     // ── Canvas ─────────────────────────────────────────────────────────────────
-    private static final int    WIDTH         = 750;
-    private static final int    HEIGHT        = 400;
+    private static final int    WIDTH         = 1300;
+    private static final int    HEIGHT        = 800;
     private static final double CX = WIDTH  / 2.0;
     private static final double CY = HEIGHT / 2.0;
 
