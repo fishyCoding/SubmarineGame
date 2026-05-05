@@ -35,7 +35,6 @@ public class Game {
     private static final long   PING_DURATION_MS = 2500;
     private static long         pingStartMs      = -1;
     private static boolean      rWasDown         = false;
-    private static boolean      radarWasActive= false;
     private static final float  PING_SOUND_STRENGTH = 10000f;
 
     // ── Radar screen (top-right corner) ───────────────────────────────────────
@@ -64,6 +63,13 @@ public class Game {
 
     // ── Torpedo system ─────────────────────────────────────────────────────────
     private static TorpedoSystem torpedoSystem;
+
+    // ── Torpedo targeting ──────────────────────────────────────────────────────
+    // Contact list is populated on ping and kept alive as long as a torpedo is
+    // in flight (even after the radar fades). Cleared when torpedo dies.
+    private static final List<String>         contactIds  = new ArrayList<>();
+    private static final Map<String, float[]> contactPos  = new java.util.LinkedHashMap<>();
+    private static int                        selectedIdx  = -1;  // index into contactIds
 
     // Mouse-hold test sound tracking
     private static boolean  mouseWasDown   = false;
@@ -305,7 +311,14 @@ public class Game {
 
             // Snapshot current remote sub positions as radar contacts
             updateRadarContacts();
-            torpedoSystem.setContacts(radarContacts);
+            // Populate contact list — only refresh if no torpedo in flight
+            if (!torpedoSystem.hasTorpedo()) {
+                contactIds.clear();
+                contactPos.clear();
+                contactIds.addAll(radarContacts.keySet());
+                contactPos.putAll(radarContacts);
+                selectedIdx = contactIds.isEmpty() ? -1 : 0;
+            }
 
             if (multiplayer && netClient != null) {
                 netClient.sendRadarPing(player.getX(), player.getY());
@@ -313,24 +326,14 @@ public class Game {
                                          PING_SOUND_STRENGTH, "radar");
             }
             System.out.println("Radar ping!");
-        } else{
-            //create a system to determine the momenet when the radar stops to determine if contacts should be cleared
-            //
-            if (!(pingAlpha() > 0f) && radarWasActive){
-                torpedoSystem.clearContacts();
-            }
-
         }
-        radarWasActive = pingAlpha() > 0f;
-        
-
         rWasDown = rDown;
 
-        //create a system to determine the momenet when the radar stops to determine if contacts should be cleared
-        
-
         // ── Target selection (number keys) ────────────────────────────────────
-        torpedoSystem.handleTargetInput();
+        for (int i = 0; i < contactIds.size() && i < 9; i++) {
+            if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_1 + i))
+                selectedIdx = i;
+        }
 
         // ── Mouse click — launch or detonate torpedo ───────────────────────────
         boolean mouseDown = StdDraw.isMousePressed();
@@ -345,6 +348,14 @@ public class Game {
             }
         }
         mouseWasDown = mouseDown;
+
+        // Clear contact list once torpedo is gone
+        if (!torpedoSystem.hasTorpedo() && torpedoSystem.getTorpedo() != null
+                && torpedoSystem.getTorpedo().hasExploded()) {
+            contactIds.clear();
+            contactPos.clear();
+            selectedIdx = -1;
+        }
     }
 
     /**
@@ -456,15 +467,20 @@ public class Game {
         float perceived = computePerceivedSound();
         PassiveSonar.draw(perceived, HEIGHT, tick);
 
-        // Radar screen (bottom-right) — shows remote sub contacts from last ping
-        
+        // Radar screen — pass torpedo world pos if active
         List<Rock> foregroundRocks = new ArrayList<>();
-        for (Sprite s : engine.getSprites()){
-            if (s instanceof Rock && ((Rock) s).getDepth() == 1){
+        for (Sprite s : engine.getSprites())
+            if (s instanceof Rock && ((Rock) s).getDepth() == 1)
                 foregroundRocks.add((Rock) s);
-            }
-        }
-        RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(), pingAlpha, radarContacts, foregroundRocks, torpedoSystem);
+
+        float[] torpedoPos = torpedoSystem.hasTorpedo()
+                ? new float[]{torpedoSystem.getTorpedo().getX(), torpedoSystem.getTorpedo().getY()}
+                : null;
+        RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(),
+                pingAlpha, radarContacts, foregroundRocks, torpedoPos);
+
+        // ── Contact list UI ────────────────────────────────────────────────────
+        drawContactUI();
     }
 
     // ── Radar ──────────────────────────────────────────────────────────────────
@@ -480,6 +496,52 @@ public class Game {
         Radar.drawRadarOutlines(alpha, engine);
         bottomLayer.drawRadarOutline(engine, alpha);
         StdDraw.setPenRadius(0.002);
+    }
+
+    private static void drawContactUI() {
+        if (contactIds.isEmpty()) return;
+
+        int rightX = WIDTH - 10;
+        int startY = 340;
+        int lineH  = 14;
+
+        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
+        StdDraw.setPenColor(new java.awt.Color(0, 180, 80));
+        StdDraw.textRight(rightX, startY + lineH, "CONTACTS");
+
+        for (int i = 0; i < contactIds.size() && i < 9; i++) {
+            String label = String.format("[%d] %s", i + 1, contactIds.get(i));
+            StdDraw.setPenColor(i == selectedIdx
+                    ? new java.awt.Color(255, 220, 80)
+                    : new java.awt.Color(0, 160, 70));
+            StdDraw.textRight(rightX, startY - i * lineH, label);
+        }
+
+        // Instruction
+        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 10));
+        StdDraw.setPenColor(new java.awt.Color(0, 120, 50));
+        int below = startY - contactIds.size() * lineH - 4;
+        StdDraw.textRight(rightX, below,
+                torpedoSystem.hasTorpedo() ? "Click to detonate" : "Click to launch torpedo");
+
+        // Distance readout — shown as long as torpedo is alive and target is selected
+        if (torpedoSystem.hasTorpedo() && selectedIdx >= 0 && selectedIdx < contactIds.size()) {
+            float[] pos = contactPos.get(contactIds.get(selectedIdx));
+            if (pos != null) {
+                Torpedo t = torpedoSystem.getTorpedo();
+                float dx   = pos[0] - t.getX();
+                float dy   = pos[1] - t.getY();
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+
+                // Hot/cold colour
+                float ratio = Math.min(1f, dist / 2000f);
+                int r = (int)(255 * ratio);
+                int g = (int)(255 * (1 - ratio));
+                StdDraw.setPenColor(new java.awt.Color(r, g, 0));
+                StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 13));
+                StdDraw.textRight(rightX, below - 16, String.format("DIST: %.0f m", dist));
+            }
+        }
     }
 
     // ── Misc ───────────────────────────────────────────────────────────────────

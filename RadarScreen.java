@@ -53,7 +53,8 @@ public class RadarScreen {
                             float playerX, float playerY,
                             float pingAlpha,
                             Map<String, float[]> contacts,
-                            List<Rock> rocks, TorpedoSystem torpedoSystem) {
+                            List<Rock> rocks,
+                            float[] torpedoPos) {
 
         // Panel centre in screen coords (top-right corner)
         double cx = screenW - MARGIN - RADIUS;
@@ -166,45 +167,44 @@ public class RadarScreen {
             }
         }
 
-        //loop through torpedos controlled by the user and add them every frame
-        if (torpedoSystem.torpedo != null) {
-            Torpedo t= torpedoSystem.torpedo;
-            if(t.isAlive()){
-            float[] pos = new float[]{t.getX(), t.getY()};
-            //don't check line of sight, player's own torpedos should always be visible on the radar
-            float dx = pos[0] - playerX;
-            float dy = pos[1] - playerY;
-            // Scale world offset → radar screen offset
-            double scale  = (double) RADIUS / WORLD_RADIUS;
-            double sdx    = dx * scale;
-            double sdy    = dy * scale;   // world Y up = screen Y up
-            double dist = Math.sqrt(sdx * sdx + sdy * sdy);
-            boolean clamped = dist > RADIUS - 4;
 
-            if (clamped) {
-                // Clamp to edge ring
+
+        // ── Torpedo blip — yellow triangle, always shown while torpedo is alive ──
+        if (torpedoPos != null) {
+            float tdx = torpedoPos[0] - playerX;
+            float tdy = torpedoPos[1] - playerY;
+            double scale = (double) RADIUS / WORLD_RADIUS;
+            double sdx   = tdx * scale;
+            double sdy   = tdy * scale;
+            double dist  = Math.sqrt(sdx * sdx + sdy * sdy);
+            if (dist > RADIUS - 4) {
                 double norm = (RADIUS - 4) / dist;
                 sdx *= norm;
                 sdy *= norm;
             }
-            double bx = cx + sdx;
-            double by = cy + sdy;
+            double tx = cx + sdx;
+            double ty = cy + sdy;
 
-            //draw triangle there for the torpedo
-            StdDraw.setPenColor(new Color(255, 80, 80));
-            double angle = Math.atan2(sdy, sdx);
-            double size = 2;
-            double x1 = bx + Math.cos(angle) * size;
-            double y1 = by + Math.sin(angle) * size;    
-            double x2 = bx + Math.cos(angle + 2.5) * size;
-            double y2 = by + Math.sin(angle + 2.5) * size;
-            double x3 = bx + Math.cos(angle - 2.5) * size;
-            double y3 = by + Math.sin(angle - 2.5) * size;
-            StdDraw.filledPolygon(new double[]{x1, x2, x3}, new double[]{y1, y2, y3});
-        }
-
-            
-
+            // Angle the triangle points in the torpedo's travel direction
+            // (we only have position so just point away from player)
+            double ang = Math.atan2(sdy, sdx);
+            double size = 5.0;
+            double[] trx = {
+                tx + Math.cos(ang)           * size * 2,
+                tx + Math.cos(ang + 2.4) * size,
+                tx + Math.cos(ang - 2.4) * size
+            };
+            double[] try_ = {
+                ty + Math.sin(ang)           * size * 2,
+                ty + Math.sin(ang + 2.4) * size,
+                ty + Math.sin(ang - 2.4) * size
+            };
+            StdDraw.setPenColor(new Color(255, 220, 0));
+            StdDraw.filledPolygon(trx, try_);
+            StdDraw.setPenColor(new Color(200, 160, 0));
+            StdDraw.setPenRadius(0.001);
+            StdDraw.polygon(trx, try_);
+            StdDraw.setPenRadius(0.002);
         }
 
         // ── Title label above panel ────────────────────────────────────────────
