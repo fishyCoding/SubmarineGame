@@ -204,6 +204,8 @@ public class Game {
                     netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), false);
                     netClient.sendTorpedoDetonate(
                             t.getX(), t.getY(), t.getBlastRadius(), t.getDamage());
+                    // Now safe to null — packet is already queued
+                    torpedoSystem.resetTorpedo();
                 }
 
                 // ── Drain remote detonations — apply damage to local player ───
@@ -349,14 +351,14 @@ public class Game {
         }
         mouseWasDown = mouseDown;
 
-        // Clear contact list once torpedo is gone — then reset torpedo so this
-        // block never fires again until a new torpedo is launched
+        // Clear contact list once torpedo is gone.
+        // Do NOT null the torpedo here — the network block later in the loop
+        // still needs getTorpedo() to send the detonation packet.
         if (!torpedoSystem.hasTorpedo() && torpedoSystem.getTorpedo() != null
                 && torpedoSystem.getTorpedo().hasExploded()) {
             contactIds.clear();
             contactPos.clear();
             selectedIdx = -1;
-            torpedoSystem.resetTorpedo();   // null out the dead torpedo reference
         }
 
         // Also clear contacts once the radar fades and no torpedo is in flight
