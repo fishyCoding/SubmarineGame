@@ -16,7 +16,7 @@ import java.awt.Color;
  */
 public class Torpedo extends Character {
 
-    private static final float MAXSPEED        = 15f;
+    private static final float MAXSPEED        = 13f;
     private static float speed           = 3f;  // world-units per tick
     private static final float ACCELERATION = 1.5f;  // world-units per tick squared
     private static final float TURN_RATE    = 3.5f;  // max degrees to turn per tick
