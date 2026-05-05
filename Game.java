@@ -95,7 +95,7 @@ public class Game {
         setupNetwork(args);
         setupWindow();
         setupSounds();
-        torpedoSystem = new TorpedoSystem();
+        torpedoSystem = new TorpedoSystem(WIDTH);
         printControls();
         gameLoop();
     }
