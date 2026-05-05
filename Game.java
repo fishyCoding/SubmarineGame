@@ -448,7 +448,7 @@ public class Game {
                 ? new float[]{torpedoSystem.getTorpedo().getX(), torpedoSystem.getTorpedo().getY()}
                 : null;
         RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(),
-                pingAlpha, radarContacts, foregroundRocks, torpedoPos);
+                pingAlpha, radarContacts, foregroundRocks, torpedoPos, bottomLayer);
 
         // ── Contact list UI ────────────────────────────────────────────────────
         drawContactUI();
@@ -500,13 +500,23 @@ public class Game {
         StdDraw.textRight(rightX, below,
                 torpedoSystem.hasTorpedo() ? "Click to detonate" : "Click to launch torpedo");
 
-        // Distance readout — shown as long as torpedo is alive and target is selected
+        // Distance readout — always uses live remote sub position, not the stale ping snapshot.
         if (torpedoSystem.hasTorpedo() && selectedIdx >= 0 && selectedIdx < contactIds.size()) {
-            float[] pos = contactPos.get(contactIds.get(selectedIdx));
-            if (pos != null) {
+            String targetId = contactIds.get(selectedIdx);
+            float liveX, liveY;
+            Submarine liveSub = (netClient != null) ? netClient.getRemoteSubs().get(targetId) : null;
+            if (liveSub != null) {
+                liveX = liveSub.getX();
+                liveY = liveSub.getY();
+            } else {
+                float[] snapshot = contactPos.get(targetId);
+                if (snapshot != null) { liveX = snapshot[0]; liveY = snapshot[1]; }
+                else { liveX = liveY = 0; }
+            }
+            if (liveSub != null || contactPos.containsKey(targetId)) {
                 Torpedo t = torpedoSystem.getTorpedo();
-                float dx   = pos[0] - t.getX();
-                float dy   = pos[1] - t.getY();
+                float dx   = liveX - t.getX();
+                float dy   = liveY - t.getY();
                 float dist = (float) Math.sqrt(dx * dx + dy * dy);
 
                 // Hot/cold colour

@@ -53,7 +53,8 @@ public class RadarScreen {
                             float pingAlpha,
                             Map<String, float[]> contacts,
                             List<Rock> rocks,
-                            float[] torpedoPos) {
+                            float[] torpedoPos,
+                            BottomRockLayer bottomLayer) {
 
         // Panel centre in screen coords (top-right corner)
         double cx = screenW - MARGIN - RADIUS;
@@ -77,8 +78,16 @@ public class RadarScreen {
         StdDraw.setPenRadius(0.003);
         StdDraw.circle(cx, cy, RADIUS);
         StdDraw.setPenRadius(0.002);
-                // create new map of contacts that filters out those without line of sight
 
+        // ── Passive rock minimap — always visible, dim green ──────────────────
+        // World offsets from the player are scaled by (RADIUS / WORLD_RADIUS) to
+        // get radar-pixel offsets, then added to the panel centre (cx, cy).
+        // Segments that cross the circle boundary are clipped so nothing bleeds
+        // outside the display.
+        double radarScale = (double) RADIUS / WORLD_RADIUS;
+        drawRockMinimap(rocks, playerX, playerY, cx, cy, radarScale);
+        if (bottomLayer != null)
+            drawSeafloorMinimap(bottomLayer, playerX, playerY, cx, cy, radarScale);
 
         // ── Sweep line — only visible when a ping is fresh ─────────────────────
         if (pingAlpha > 0f) {
@@ -212,6 +221,141 @@ public class RadarScreen {
         StdDraw.text(cx, cy + RADIUS + 10, "ACTIVE SONAR");
 
         StdDraw.setPenRadius(0.002);
+    }
+
+    // ── Minimap helpers ────────────────────────────────────────────────────────
+
+    /**
+     * Draw foreground (depth==1) and background (depth==0) rock polygons as
+     * dim outlines on the radar. Each polygon edge is expressed in world space,
+     * converted to a radar-pixel offset from the panel centre, then clipped to
+     * the circular boundary before drawing.
+     */
+    private static void drawRockMinimap(List<Rock> rocks,
+                                        float playerX, float playerY,
+                                        double cx, double cy, double scale) {
+        if (rocks == null) return;
+        StdDraw.setPenRadius(0.0012);
+
+        for (Rock rock : rocks) {
+            java.util.List<Float> verts = rock.getVertices();
+            int count = verts.size() / 2;
+            if (count < 2) continue;
+
+            // Foreground rocks slightly brighter than background ones
+            Color col = (rock.getDepth() == 1)
+                    ? new Color(0, 80, 30)   // dim green — foreground
+                    : new Color(0, 45, 18);  // darker  — background
+
+            StdDraw.setPenColor(col);
+
+            float rockWX = rock.getX();
+            float rockWY = rock.getY();
+
+            for (int i = 0; i < count; i++) {
+                int ni = (i + 1) % count;
+
+                // World positions of this edge
+                float ax = rockWX + verts.get(i  * 2);
+                float ay = rockWY + verts.get(i  * 2 + 1);
+                float bx = rockWX + verts.get(ni * 2);
+                float by = rockWY + verts.get(ni * 2 + 1);
+
+                // Radar-pixel offsets from panel centre (world Y up = radar Y up)
+                double rax = (ax - playerX) * scale;
+                double ray = (ay - playerY) * scale;
+                double rbx = (bx - playerX) * scale;
+                double rby = (by - playerY) * scale;
+
+                // Clip and draw — clips to circle of radius (RADIUS - 1)
+                drawClippedSegment(cx, cy, rax, ray, rbx, rby, RADIUS - 1.0);
+            }
+        }
+        StdDraw.setPenRadius(0.002);
+    }
+
+    /**
+     * Draw the seafloor polyline as a dim yellow-green line on the radar.
+     * The floor is below the player most of the time, so it appears in the
+     * lower half of the display and scrolls as the player moves horizontally.
+     */
+    private static void drawSeafloorMinimap(BottomRockLayer floor,
+                                            float playerX, float playerY,
+                                            double cx, double cy, double scale) {
+        StdDraw.setPenColor(new Color(40, 70, 30));   // dim olive — distinct from rocks
+        StdDraw.setPenRadius(0.0015);
+
+        int n = BottomRockLayer.NUM_POINTS;
+        for (int i = 0; i < n - 1; i++) {
+            float ax = floor.getPointWorldX(i);
+            float ay = floor.getPointWorldY(i);
+            float bx = floor.getPointWorldX(i + 1);
+            float by = floor.getPointWorldY(i + 1);
+
+            double rax = (ax - playerX) * scale;
+            double ray = (ay - playerY) * scale;
+            double rbx = (bx - playerX) * scale;
+            double rby = (by - playerY) * scale;
+
+            drawClippedSegment(cx, cy, rax, ray, rbx, rby, RADIUS - 1.0);
+        }
+        StdDraw.setPenRadius(0.002);
+    }
+
+    /**
+     * Draw a line segment clipped to a circle of the given radius centred at
+     * (cx, cy).  (rax, ray) and (rbx, rby) are OFFSETS from the centre —
+     * absolute screen coords are (cx+rax, cy+ray) etc.
+     *
+     * Uses parametric line–circle intersection: solve |P(t)|² = r² where
+     * P(t) = A + t*(B-A).  Clamp the resulting t values to [0,1] and only
+     * draw the portion of the segment that lies inside the circle.
+     */
+    private static void drawClippedSegment(double cx, double cy,
+                                           double rax, double ray,
+                                           double rbx, double rby,
+                                           double r) {
+        double r2 = r * r;
+        boolean aIn = rax * rax + ray * ray <= r2;
+        boolean bIn = rbx * rbx + rby * rby <= r2;
+
+        if (!aIn && !bIn) {
+            // Both outside — check if segment passes through the circle at all
+            double dx = rbx - rax, dy = rby - ray;
+            double fDot = rax * dx + ray * dy;
+            double dLen2 = dx * dx + dy * dy;
+            if (dLen2 == 0) return;
+            double tClosest = -fDot / dLen2;
+            if (tClosest < 0 || tClosest > 1) return;
+            double closestDist2 = (rax + tClosest * dx) * (rax + tClosest * dx)
+                                + (ray + tClosest * dy) * (ray + tClosest * dy);
+            if (closestDist2 > r2) return;
+            // Segment does pass through — fall through to intersection logic below
+        }
+
+        if (aIn && bIn) {
+            // Both inside — draw the full segment
+            StdDraw.line(cx + rax, cy + ray, cx + rbx, cy + rby);
+            return;
+        }
+
+        // One or both endpoints outside — find entry/exit t values
+        double dx = rbx - rax, dy = rby - ray;
+        double a  = dx * dx + dy * dy;
+        double b  = 2 * (rax * dx + ray * dy);
+        double c  = rax * rax + ray * ray - r2;
+        double disc = b * b - 4 * a * c;
+        if (disc < 0) return;
+        double sqrtDisc = Math.sqrt(disc);
+        double t0 = (-b - sqrtDisc) / (2 * a);
+        double t1 = (-b + sqrtDisc) / (2 * a);
+
+        double tStart = Math.max(0.0, Math.min(t0, t1));
+        double tEnd   = Math.min(1.0, Math.max(t0, t1));
+        if (tStart > tEnd) return;
+
+        StdDraw.line(cx + rax + tStart * dx, cy + ray + tStart * dy,
+                     cx + rax + tEnd   * dx, cy + ray + tEnd   * dy);
     }
 
     /**
