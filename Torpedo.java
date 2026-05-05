@@ -16,10 +16,12 @@ import java.awt.Color;
  */
 public class Torpedo extends Character {
 
-    private static final float SPEED        = 15f;    // world-units per tick
+    private static final float MAXSPEED        = 15f;
+    private static float speed           = 3f;  // world-units per tick
+    private static final float ACCELERATION = 1.5f;  // world-units per tick squared
     private static final float TURN_RATE    = 3.5f;  // max degrees to turn per tick
-    private static final float BLAST_RADIUS = 200f;   // world-units for damage check
-    private static final int   DAMAGE       = 80;
+    private static final float BLAST_RADIUS = 800f;   // world-units for damage check
+    private static final int   DAMAGE       = 100;
 
     private boolean alive = true;
     private boolean exploded = false;
@@ -33,8 +35,8 @@ public class Torpedo extends Character {
         this.angle   = angleDeg;
         // Start with full speed in the launch direction
         double rad = Math.toRadians(angleDeg);
-        this.vx = (float)(Math.cos(rad) * SPEED);
-        this.vy = (float)(Math.sin(rad) * SPEED);
+        this.vx = (float)(Math.cos(rad) * speed);
+        this.vy = (float)(Math.sin(rad) * speed);
     }
 
     /**
@@ -50,6 +52,9 @@ public class Torpedo extends Character {
                        double screenCX, double screenCY) {
         if (!alive) return;
 
+        if (speed<MAXSPEED) {
+            speed = Math.min(speed + ACCELERATION, MAXSPEED);
+        }
         // Angle from screen center to mouse — this is a stable world direction
         // regardless of where the camera is
         double targetAngle = Math.toDegrees(
@@ -69,8 +74,8 @@ public class Torpedo extends Character {
 
         // Recompute velocity at constant speed
         double rad = Math.toRadians(angle);
-        vx = (float)(Math.cos(rad) * SPEED);
-        vy = (float)(Math.sin(rad) * SPEED);
+        vx = (float)(Math.cos(rad) * speed);
+        vy = (float)(Math.sin(rad) * speed);
 
         super.update();
     }

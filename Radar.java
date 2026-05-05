@@ -23,11 +23,15 @@ public class Radar {
 
         // draw on the ones on the outside so we see the polygon
         for (int i = 0; i < vertices.size(); i += 2) {
-            float x = vertices.get(i);
-            float y = vertices.get(i + 1);
-            double sx = engine.worldToScreenX(x);
-            double sy = engine.worldToScreenY(y);
-            StdDraw.point(sx, sy);
+            float vx = vertices.get(i) + rock.getX();
+            float vy = vertices.get(i + 1) + rock.getY();
+            double sx = engine.worldToScreenX(vx);
+            double sy = engine.worldToScreenY(vy);
+            float vxNext = vertices.get((i + 2) % vertices.size()) + rock.getX();
+            float vyNext = vertices.get((i + 3) % vertices.size()) + rock.getY();
+            double sxNext = engine.worldToScreenX(vxNext);
+            double syNext = engine.worldToScreenY(vyNext);
+            StdDraw.line(sx, sy, sxNext, syNext);
         }
     }
 }
