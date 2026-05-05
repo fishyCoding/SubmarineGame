@@ -27,16 +27,15 @@ public class RadarScreen {
     // World range represented by the full radar radius
     private static final float WORLD_RADIUS = 8000f;
 
+    private static final Color COL_BG        = Color.decode("#030E06");
 
-    private static final Color COL_BG        = new Color(  3, 14,  6);
-    private static final Color COL_BORDER    = new Color( 20, 80, 35);
-    private static final Color COL_GRID      = new Color( 10, 45, 18);
-    private static final Color COL_SWEEP     = new Color(  0,180, 70);
-    private static final Color COL_PLAYER    = new Color( 80,255,120);
-    private static final Color COL_CONTACT   = new Color(  0,255, 80);
-    private static final Color COL_EDGE      = new Color(  0,160, 50);
-    private static final Color COL_LABEL     = new Color(  0,200, 60);
-    private static final Color COL_TITLE     = new Color(  0,180, 70);
+    private static final Color COL_BORDER    = Color.decode("#145023");
+    private static final Color COL_GRID      = Color.decode("#0A2D12");
+    private static final Color COL_SWEEP     = Color.decode("#00B446");
+    private static final Color COL_CONTACT   = Color.decode("#00FF50");
+    private static final Color COL_EDGE      = Color.decode("#00A032");
+    private static final Color COL_LABEL     = Color.decode("#00c83c");
+    private static final Color COL_TITLE     = Color.decode("#00B446");
 
     /**
      * Draw the radar screen.

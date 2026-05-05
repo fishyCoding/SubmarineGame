@@ -24,6 +24,7 @@ public class Submarine extends Character {
     private static final float BODY_HALF_H = 12f;
 
 
+
     public Submarine(String id, float x, float y, int maxHealth, String imagePath) {
         super(id, x, y, 28f,imagePath, BODY_HALF_W,BODY_HALF_H);
         this.maxHealth=maxHealth;
@@ -132,6 +133,8 @@ public class Submarine extends Character {
         vx    = 0;
         vy    = 0;
         System.out.println(id + " has been destroyed.");
+        StdDraw.pause(1000);
+
     }
 
     public void respawn(float rx, float ry) {

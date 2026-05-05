@@ -19,6 +19,8 @@ public class Game {
     // ── Canvas ─────────────────────────────────────────────────────────────────
     private static final int    WIDTH         = 750;
     private static final int    HEIGHT        = 400;
+    private static final double CX = WIDTH  / 2.0;
+    private static final double CY = HEIGHT / 2.0;
 
     // ── World ──────────────────────────────────────────────────────────────────
     private static final float  SURFACE_LEVEL = 0f;
@@ -63,10 +65,6 @@ public class Game {
 
     // ── Torpedo system ─────────────────────────────────────────────────────────
     private static TorpedoSystem torpedoSystem;
-
-    // ── Torpedo targeting ──────────────────────────────────────────────────────
-    // Contact list is populated on ping and kept alive as long as a torpedo is
-    // in flight (even after the radar fades). Cleared when torpedo dies.
     private static final List<String>         contactIds  = new ArrayList<>();
     private static final Map<String, float[]> contactPos  = new java.util.LinkedHashMap<>();
     private static int                        selectedIdx  = -1;  // index into contactIds
@@ -79,14 +77,7 @@ public class Game {
     private static NetworkServer   netServer  = null;
     private static boolean         multiplayer = false;
 
-    // ── Frame counter ──────────────────────────────────────────────────────────
     private static long tick = 0;
-
-    // ── Cached screen centre ───────────────────────────────────────────────────
-    private static final double CX = WIDTH  / 2.0;
-    private static final double CY = HEIGHT / 2.0;
-
-    // ── Entry point ────────────────────────────────────────────────────────────
 
     public static void main(String[] args) {
         parseArgs(args);
@@ -285,7 +276,7 @@ public class Game {
         }
     }
 
-    private static void triggerRespawn() {
+    public static void triggerRespawn() {
         player.respawn(SPAWN_X, SPAWN_Y);
         engine.setCamera(SPAWN_X - (float) CX, SPAWN_Y - (float) CY);
     }
@@ -379,7 +370,7 @@ public class Game {
         for (Map.Entry<String, Submarine> e : netClient.getRemoteSubs().entrySet()) {
             Submarine sub = e.getValue();
             radarContacts.put(e.getKey(),
-                    new float[]{sub.getX(), sub.getY()});
+            new float[]{sub.getX(), sub.getY()});
         }
     }
 
@@ -389,45 +380,6 @@ public class Game {
         if (!sounds.contains(engineSound)) sounds.add(engineSound);
     }
 
-    // ── Ray-traced perceived sound ─────────────────────────────────────────────
-
-    /**
-     * Compute total perceived intensity at the player's position.
-     *
-     * If USE_RAYTRACE_SONAR is true, each sound's contribution is blocked
-     * (set to 0) when the straight line from the sound to the player passes
-     * through any foreground Rock. This simulates acoustic shadow zones.
-     */
-    private static float computePerceivedSound() {
-        float lx = player.getX();
-        float ly = player.getY();
-
-   
-        return Sound.totalPerceivedAt(sounds, lx, ly);
-        
-
-
-    }
-
-    /**
-     * Returns true if the segment from (x1,y1) to (x2,y2) is NOT blocked by
-     * any rock polygon. We sample N points along the segment and test each.
-     * Not physically exact but fast and visually convincing.
-     */
-    private static boolean hasLineOfSight(float x1, float y1,
-                                           float x2, float y2,
-                                           List<Rock> rocks) {
-        final int SAMPLES = 12;
-        for (int i = 1; i < SAMPLES; i++) {
-            float t  = (float) i / SAMPLES;
-            float px = x1 + t * (x2 - x1);
-            float py = y1 + t * (y2 - y1);
-            for (Rock r : rocks) {
-                if (r.contains(px, py)) return false;
-            }
-        }
-        return true;
-    }
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -475,7 +427,8 @@ public class Game {
         HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);
 
         // Passive sonar (ray-traced)
-        float perceived = computePerceivedSound();
+
+        float perceived = Sound.totalPerceivedAt(sounds,player.getX(), player.getY());
         PassiveSonar.draw(perceived, HEIGHT, tick);
 
         // Radar screen — pass torpedo world pos if active
