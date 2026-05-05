@@ -16,9 +16,9 @@ import java.awt.Color;
  */
 public class Torpedo extends Character {
 
-    private static final float SPEED        = 7f;    // world-units per tick
+    private static final float SPEED        = 15f;    // world-units per tick
     private static final float TURN_RATE    = 3.5f;  // max degrees to turn per tick
-    private static final float BLAST_RADIUS = 80f;   // world-units for damage check
+    private static final float BLAST_RADIUS = 200f;   // world-units for damage check
     private static final int   DAMAGE       = 80;
 
     private boolean alive = true;

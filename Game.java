@@ -35,6 +35,7 @@ public class Game {
     private static final long   PING_DURATION_MS = 2500;
     private static long         pingStartMs      = -1;
     private static boolean      rWasDown         = false;
+    private static boolean      radarWasActive= false;
     private static final float  PING_SOUND_STRENGTH = 10000f;
 
     // ── Radar screen (top-right corner) ───────────────────────────────────────
@@ -312,8 +313,21 @@ public class Game {
                                          PING_SOUND_STRENGTH, "radar");
             }
             System.out.println("Radar ping!");
+        } else{
+            //create a system to determine the momenet when the radar stops to determine if contacts should be cleared
+            //
+            if (!(pingAlpha() > 0f) && radarWasActive){
+                torpedoSystem.clearContacts();
+            }
+
         }
+        radarWasActive = pingAlpha() > 0f;
+        
+
         rWasDown = rDown;
+
+        //create a system to determine the momenet when the radar stops to determine if contacts should be cleared
+        
 
         // ── Target selection (number keys) ────────────────────────────────────
         torpedoSystem.handleTargetInput();
@@ -450,7 +464,7 @@ public class Game {
                 foregroundRocks.add((Rock) s);
             }
         }
-        RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(), pingAlpha, radarContacts, foregroundRocks);
+        RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(), pingAlpha, radarContacts, foregroundRocks, torpedoSystem);
     }
 
     // ── Radar ──────────────────────────────────────────────────────────────────

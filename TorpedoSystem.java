@@ -24,10 +24,10 @@ public class TorpedoSystem {
     private final List<String>   contactIds  = new ArrayList<>();
     private final Map<String, float[]> contactPos = new LinkedHashMap<>(); // id → [x, y]
 
-    private int selectedIndex = -1; // which contact is targeted (-1 = none)
+    private int selectedIndex = -1; 
 
     // ── Active torpedo ─────────────────────────────────────────────────────────
-    private Torpedo torpedo = null;
+    public Torpedo torpedo = null;
 
     // ── Layout constants (screen coords) ──────────────────────────────────────
     private final int screenW;
@@ -49,7 +49,10 @@ public class TorpedoSystem {
         contactPos.clear();
         contactIds.addAll(contactMap.keySet());
         contactPos.putAll(contactMap);
-        selectedIndex = contactIds.isEmpty() ? -1 : 0; // auto-select first
+        //if torpedo is null, set target back to 0. if theres still a torpedo keep same target index
+        if (torpedo == null || !torpedo.isAlive()) {
+            selectedIndex = -1;
+        }
     }
 
     /** Called each tick — check number keys 1-9 to select a target. */
@@ -144,6 +147,27 @@ public class TorpedoSystem {
 
     // ── Rendering ──────────────────────────────────────────────────────────────
 
+    public void clearContacts(){
+         
+
+
+         if (torpedo == null || !torpedo.isAlive()) {
+            contactIds.clear();
+            contactPos.clear();
+             selectedIndex = -1;   
+         } else {
+            //clear all items in list but the current selected one
+            String selectedId = contactIds.get(selectedIndex);
+            contactIds.clear();
+            contactIds.add(selectedId);
+            contactPos.clear();
+            contactPos.put(selectedId, contactPos.get(selectedId)); 
+            selectedIndex = 0;
+
+         }
+
+    }
+
     public void draw(GameEngine engine) {
         if (hasTorpedo()) torpedo.draw(engine);
         drawContactList();
@@ -164,9 +188,13 @@ public class TorpedoSystem {
         StdDraw.textRight(contactListX, startY + lineH, "CONTACTS");
 
         for (int i = 0; i < contactIds.size() && i < 9; i++) {
+            //right now theres a bug its not changing color of the text when u select
+
             String id  = contactIds.get(i);
             float[] pos = contactPos.get(id);
             boolean sel = (i == selectedIndex);
+
+            System.out.println(id);
 
             String label = String.format("[%d] %s", i + 1, id);
             if (sel) {
@@ -194,7 +222,7 @@ public class TorpedoSystem {
      */
     private void drawDistanceReadout(GameEngine engine) {
         if (selectedIndex < 0 || selectedIndex >= contactIds.size()) return;
-
+        System.out.println("Selected index: " + selectedIndex);
         float[] pos = contactPos.get(contactIds.get(selectedIndex));
         if (pos == null) return;
 
@@ -202,17 +230,13 @@ public class TorpedoSystem {
         float dy   = pos[1] - torpedo.getY();
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
 
-        // Color: green when close, red when far (hot/cold)
         float maxDist = 2000f;
-        float t       = Math.min(1f, dist / maxDist);
-        int   r       = (int)(255 * t);
-        int   g       = (int)(255 * (1 - t));
-        StdDraw.setPenColor(new Color(r, g, 0));
+
+        StdDraw.setPenColor(new Color(0, 255, 0));
 
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 13));
         StdDraw.textRight(contactListX, 310, String.format("DIST: %.0f m", dist));
 
-        // Also draw a small dot on screen showing torpedo screen position
         double sx = engine.worldToScreenX(torpedo.getX());
         double sy = engine.worldToScreenY(torpedo.getY());
         StdDraw.setPenColor(new Color(255, 220, 80, 200));

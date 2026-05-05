@@ -149,11 +149,9 @@ public class Submarine extends Character {
 
     public void drawCentred(double cx, double cy) {
         if (!alive) { drawWreck(cx, cy); return; }
-        if (imagePath != null) {
-            StdDraw.picture(cx, cy, imagePath, imageHalfW * 2, imageHalfH * 2, -angle);
-        } else {
-            drawSubBody(cx, cy);
-        }
+
+        drawSubBody(cx, cy);
+        
     }
 
     private void drawSubBody(double sx, double sy) {

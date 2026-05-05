@@ -21,19 +21,13 @@ public class Radar {
         StdDraw.setPenColor(new Color(0, 255, 0, alpha));
         StdDraw.setPenRadius(0.002);
 
-        // Draws every single permutation (or is it combination i have no clue)
-        //basic double loop to avoid redrawing, not sure if this is that necessary
+        // draw on the ones on the outside so we see the polygon
         for (int i = 0; i < vertices.size(); i += 2) {
-            double v1X = engine.worldToScreenX(rock.getX() + vertices.get(i));
-            double v1Y = engine.worldToScreenY(rock.getY() + vertices.get(i + 1));
-
-            for (int j = i + 2; j < vertices.size(); j += 2) {
-                double v2X = engine.worldToScreenX(rock.getX() + vertices.get(j));
-                double v2Y = engine.worldToScreenY(rock.getY() + vertices.get(j + 1));
-
-                StdDraw.line(v1X, v1Y, v2X, v2Y);
-            }
+            float x = vertices.get(i);
+            float y = vertices.get(i + 1);
+            double sx = engine.worldToScreenX(x);
+            double sy = engine.worldToScreenY(y);
+            StdDraw.point(sx, sy);
         }
     }
-
 }

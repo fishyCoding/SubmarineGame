@@ -15,10 +15,7 @@ public abstract class Character extends Sprite {
     protected float vy;       // velocity y  (world units / tick)
     protected float angle;    // heading in degrees  (0 = right, 90 = up)
 
-    // ── Visual ─────────────────────────────────────────────────────────────────
-    protected String imagePath;
-    protected float  imageHalfW;
-    protected float  imageHalfH;
+
 
     // ── Identity ───────────────────────────────────────────────────────────────
     protected String id;
@@ -31,9 +28,7 @@ public abstract class Character extends Sprite {
         super(x, y, Color.WHITE);
         this.id = id;
         this.collisionRadius = collisionRadius;
-        this.imagePath = imagePath;
-        this.imageHalfW = imageHalfW;
-        this.imageHalfH = imageHalfH;
+
         this.vx = 0;
         this.vy = 0;
         this.angle = 0;
@@ -92,12 +87,9 @@ public abstract class Character extends Sprite {
         double sx = engine.worldToScreenX(x);
         double sy = engine.worldToScreenY(y);
 
-        if (imagePath != null) {
-            StdDraw.picture(sx, sy, imagePath, imageHalfW * 2, imageHalfH * 2, -angle);
-        } else {
             StdDraw.setPenColor(color);
             StdDraw.filledCircle(sx, sy, collisionRadius);
-        }
+        
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────
@@ -119,10 +111,8 @@ public abstract class Character extends Sprite {
     public float  getAngle() { return angle; }
     public float  getSpeed() { return (float) Math.hypot(vx, vy); }
     public float  getCollisionRadius(){ return collisionRadius; }
-    public String getImagePath() { return imagePath; }
 
     public void setAngle(float angle){ this.angle = angle % 360; }
-    public void setImagePath(String p){ this.imagePath = p; }
 
     @Override public String getType() { return "CHARACTER"; }
 
