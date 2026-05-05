@@ -358,7 +358,7 @@ public class Game {
         }
 
         // Also clear contacts once the radar fades and no torpedo is in flight
-        if (pingAlpha() == 0f && !torpedoSystem.hasTorpedo()) {
+        if (pingAlpha() == 0f && !torpedoSystem.hasTorpedo() && !contactIds.isEmpty()) {
             contactIds.clear();
             contactPos.clear();
             selectedIdx = -1;
