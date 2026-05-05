@@ -188,7 +188,7 @@ public class RadarScreen {
             // Angle the triangle points in the torpedo's travel direction
             // (we only have position so just point away from player)
             double ang = Math.atan2(sdy, sdx);
-            double size = 5.0;
+            double size = 1.0;
             double[] trx = {
                 tx + Math.cos(ang)           * size * 2,
                 tx + Math.cos(ang + 2.4) * size,
