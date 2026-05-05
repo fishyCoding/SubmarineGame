@@ -6,6 +6,12 @@ public class Submarine extends Character {
     private boolean alive;
     private float rudderAngle = 0f;
 
+    // Death / respawn state
+    private boolean dead        = false;   // true after die(), before respawn
+    private long    deathTimeMs = 0L;      // System.currentTimeMillis() at death
+    private static final long DEATH_PAUSE_MS = 5000L;  // 5-second countdown
+    private boolean respawnReady = false;  // true once countdown expires
+
     // Physics constants
     private static final float THRUST_ACCEL = 0.35f;  // world-units / tick²
     private static final float VERTICAL_ACCEL = 0.30f;  // Q/E  world-units / tick²
@@ -76,7 +82,13 @@ public class Submarine extends Character {
     }
  
     public void handleInput() {
-        if (!alive) return;
+        if (!alive) {
+            // While on death screen, poll for respawn button click
+            if (respawnReady && StdDraw.isMousePressed()) {
+                respawn(0, -80);
+            }
+            return;
+        }
 
         //rudder controls
         handleRudderInput();
@@ -86,13 +98,20 @@ public class Submarine extends Character {
         //Random testing shit
         if (StdDraw.isKeyPressed('P'))
             takeDamage(50);
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_O))
-            respawn(0, -200);
     }
 
     @Override
     public void update() {
-        if (!alive) return;
+        if (!alive) {
+            // Advance death countdown
+            if (dead && !respawnReady) {
+                long elapsed = System.currentTimeMillis() - deathTimeMs;
+                if (elapsed >= DEATH_PAUSE_MS) {
+                    respawnReady = true;
+                }
+            }
+            return;
+        }
 
         //basic trig stuff for getting forward vector
         float forwardSpeed = (float)(vx * Math.cos(Math.toRadians(angle))+ vy * Math.sin(Math.toRadians(angle)));
@@ -129,20 +148,25 @@ public class Submarine extends Character {
     }
 
     private void die() {
-        alive = false;
-        vx    = 0;
-        vy    = 0;
+        alive         = false;
+        dead          = true;
+        respawnReady  = false;
+        vx            = 0;
+        vy            = 0;
+        deathTimeMs   = System.currentTimeMillis();
         System.out.println(id + " has been destroyed.");
-        StdDraw.pause(1000);
-        respawn(1300, -800);
-
     }
 
     public void respawn(float rx, float ry) {
-        x           = rx;
-        y           = ry;
+        // add slight random offset so you don't always spawn in the exact same spot
+        float jitterX = (float)((Math.random() - 0.5) * 400);   // ±200 world units
+        float jitterY = (float)((Math.random() - 0.5) * 80);    // ±40  world units (stays near surface)
+        x           = rx + jitterX;
+        y           = ry + jitterY;
         health      = maxHealth;
         alive       = true;
+        dead        = false;
+        respawnReady= false;
         vx          = 0;
         vy          = 0;
         angle       = 0;
@@ -233,6 +257,85 @@ public class Submarine extends Character {
     @Override
     public void draw(GameEngine engine) {
         drawCentred(engine.worldToScreenX(x), engine.worldToScreenY(y));
+        if (dead) drawDeathScreen(engine);
+    }
+
+    /**
+     * Fullscreen death overlay. Shows a countdown for 5 s, then a respawn button.
+     * Call this every frame while dead=true.
+     */
+    private void drawDeathScreen(GameEngine engine) {
+        // We need screen dimensions — derive them from StdDraw scale
+        double W = StdDraw.getWidth();
+        double H = StdDraw.getHeight();
+
+        // Semi-transparent dark overlay
+        StdDraw.setPenColor(new java.awt.Color(0, 0, 0, 160));
+        StdDraw.filledRectangle(W / 2, H / 2, W / 2, H / 2);
+
+        long elapsed = System.currentTimeMillis() - deathTimeMs;
+        long secsLeft = Math.max(0, (DEATH_PAUSE_MS - elapsed + 999) / 1000);
+
+        // ── "DESTROYED" title ─────────────────────────────────────────────────
+        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 52));
+        // shadow
+        StdDraw.setPenColor(new java.awt.Color(80, 0, 0, 200));
+        StdDraw.text(W / 2 + 3, H / 2 + 83, "SUBMARINE DESTROYED");
+        // main text
+        StdDraw.setPenColor(new java.awt.Color(220, 50, 50));
+        StdDraw.text(W / 2, H / 2 + 86, "SUBMARINE DESTROYED");
+
+        if (!respawnReady) {
+            // ── Countdown ─────────────────────────────────────────────────────
+            StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 28));
+            StdDraw.setPenColor(new java.awt.Color(180, 180, 180));
+            StdDraw.text(W / 2, H / 2 + 40, "Respawning in " + secsLeft + "...");
+
+            // Progress bar background
+            double barW = 220, barH = 10;
+            double barX = W / 2 - barW / 2, barY = H / 2 + 18;
+            StdDraw.setPenColor(new java.awt.Color(60, 60, 60));
+            StdDraw.filledRectangle(W / 2, barY + barH / 2, barW / 2, barH / 2);
+
+            // Progress bar fill
+            double progress = Math.min(1.0, (double) elapsed / DEATH_PAUSE_MS);
+            StdDraw.setPenColor(new java.awt.Color(200, 60, 60));
+            double fillW = barW * progress;
+            StdDraw.filledRectangle(barX + fillW / 2, barY + barH / 2, fillW / 2, barH / 2);
+
+        } else {
+            // ── Respawn button ────────────────────────────────────────────────
+            double btnCX = W / 2, btnCY = H / 2 + 30;
+            double btnW = 110, btnH = 22;
+
+            double mx = StdDraw.mouseX(), my = StdDraw.mouseY();
+            boolean hover = Math.abs(mx - btnCX) < btnW && Math.abs(my - btnCY) < btnH;
+
+            // Button shadow
+            StdDraw.setPenColor(new java.awt.Color(0, 0, 0, 120));
+            StdDraw.filledRectangle(btnCX + 3, btnCY - 3, btnW, btnH);
+
+            // Button body
+            java.awt.Color btnColor = hover
+                    ? new java.awt.Color(220, 80, 80)
+                    : new java.awt.Color(160, 40, 40);
+            StdDraw.setPenColor(btnColor);
+            StdDraw.filledRectangle(btnCX, btnCY, btnW, btnH);
+
+            // Button border
+            StdDraw.setPenColor(new java.awt.Color(255, 120, 120));
+            StdDraw.setPenRadius(0.002);
+            StdDraw.rectangle(btnCX, btnCY, btnW, btnH);
+
+            // Button label
+            StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 22));
+            StdDraw.setPenColor(java.awt.Color.WHITE);
+            StdDraw.text(btnCX, btnCY, "[ RESPAWN ]");
+
+            StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 15));
+            StdDraw.setPenColor(new java.awt.Color(150, 150, 150));
+            StdDraw.text(W / 2, H / 2 - 10, "click anywhere to respawn");
+        }
     }
 
     // ── Serialization ──────────────────────────────────────────────────────────
