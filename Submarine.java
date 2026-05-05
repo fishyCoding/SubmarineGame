@@ -134,6 +134,7 @@ public class Submarine extends Character {
         vy    = 0;
         System.out.println(id + " has been destroyed.");
         StdDraw.pause(1000);
+        respawn(1300, -800);
 
     }
 
