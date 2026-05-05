@@ -95,7 +95,7 @@ public class Game {
         setupNetwork(args);
         setupWindow();
         setupSounds();
-        torpedoSystem = new TorpedoSystem();
+        torpedoSystem = new TorpedoSystem(WIDTH);
         printControls();
         gameLoop();
     }
@@ -349,12 +349,14 @@ public class Game {
         }
         mouseWasDown = mouseDown;
 
-        // Clear contact list once torpedo is gone
+        // Clear contact list once torpedo is gone — then reset torpedo so this
+        // block never fires again until a new torpedo is launched
         if (!torpedoSystem.hasTorpedo() && torpedoSystem.getTorpedo() != null
                 && torpedoSystem.getTorpedo().hasExploded()) {
             contactIds.clear();
             contactPos.clear();
             selectedIdx = -1;
+            torpedoSystem.resetTorpedo();   // null out the dead torpedo reference
         }
 
         // Also clear contacts once the radar fades and no torpedo is in flight
