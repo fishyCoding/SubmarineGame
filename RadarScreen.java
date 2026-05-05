@@ -25,7 +25,7 @@ public class RadarScreen {
 
 
     // World range represented by the full radar radius
-    private static final float WORLD_RADIUS = 8000f;
+    private static final float WORLD_RADIUS = 5000f;
 
     private static final Color COL_BG        = Color.decode("#030E06");
 

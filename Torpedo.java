@@ -20,7 +20,7 @@ public class Torpedo extends Character {
     private static float speed           = 3f;  // world-units per tick
     private static final float ACCELERATION = 1.5f;  // world-units per tick squared
     private static final float TURN_RATE    = 3.5f;  // max degrees to turn per tick
-    private static final float BLAST_RADIUS = 200f;   // world-units for damage check
+    private static final float BLAST_RADIUS = 250f;   // world-units for damage check
     private static final int   DAMAGE       = 100;
 
     private boolean alive = true;
