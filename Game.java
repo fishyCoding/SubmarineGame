@@ -159,7 +159,6 @@ public class Game {
 
     private static void spawnPlayer() {
         player = new Submarine("Player", SPAWN_X, SPAWN_Y, PLAYER_MAX_HP, null);
-        player.setScreenSize(WIDTH, HEIGHT);   // ← add this
         System.out.println("Spawned: " + player);
     }
 
@@ -261,22 +260,23 @@ public class Game {
         for (Sprite s : engine.getSprites()) {
             if (!(s instanceof Rock)) continue;
             Rock rock = (Rock) s;
-            if (rock.getDepth() != 1) continue;   // only solid foreground rocks
+            if (rock.getDepth() != 1) continue;
             if (player.collidesWithRock(rock)) {
-                System.out.println("Hit a rock! Respawning...");
-                triggerRespawn();
+                System.out.println("Hit a rock!");
+                player.takeDamage(player.getHealth());   // triggers die() → death screen
                 return;
             }
         }
 
-        // Check seafloor — interpolate the actual floor height at the player's X
+        // Check seafloor
         float floorY = bottomLayer.getFloorYAt(player.getX());
         if (player.getY() <= floorY + player.getCollisionRadius()) {
-            System.out.println("Hit the seafloor! Respawning...");
-            triggerRespawn();
+            System.out.println("Hit the seafloor!");
+            player.takeDamage(player.getHealth());
         }
     }
 
+    /** Called by the death screen button once the player confirms respawn. */
     public static void triggerRespawn() {
         player.respawn(SPAWN_X, SPAWN_Y);
         engine.setCamera(SPAWN_X - (float) CX, SPAWN_Y - (float) CY);
@@ -329,10 +329,16 @@ public class Game {
                 selectedIdx = i;
         }
 
-        // ── Mouse click — launch or detonate torpedo ───────────────────────────
+        // ── Mouse click — respawn (if dead) OR launch/detonate torpedo ──────────
         boolean mouseDown = StdDraw.isMousePressed();
         if (mouseDown && !mouseWasDown) {
-            if (!torpedoSystem.hasTorpedo()) {
+            if (!player.isAlive()) {
+                // Death screen is showing — check if respawn is ready and snap camera
+                player.handleRespawnClick();
+                if (player.isAlive()) {
+                    engine.setCamera(player.getX() - (float) CX, player.getY() - (float) CY);
+                }
+            } else if (!torpedoSystem.hasTorpedo()) {
                 torpedoSystem.launchTorpedo(player.getX(), player.getY(), player.getAngle());
             } else {
                 Map<String, Submarine> remotes = (multiplayer && netClient != null)
@@ -446,6 +452,11 @@ public class Game {
 
         // ── Contact list UI ────────────────────────────────────────────────────
         drawContactUI();
+
+        // ── Death screen overlay (drawn last so it's on top of everything) ─────
+        if (!player.isAlive()) {
+            player.drawDeathScreen(WIDTH, HEIGHT);
+        }
     }
 
     // ── Radar ──────────────────────────────────────────────────────────────────
