@@ -31,11 +31,21 @@ public class Submarine extends Character {
 
 
 
+    // Screen dimensions — needed for the death overlay
+    private int screenW = 1600;
+    private int screenH = 800;
+
     public Submarine(String id, float x, float y, int maxHealth, String imagePath) {
         super(id, x, y, 28f,imagePath, BODY_HALF_W,BODY_HALF_H);
         this.maxHealth=maxHealth;
         this.health=maxHealth;
         this.alive=true;
+    }
+
+    /** Call once after construction so the death screen knows the canvas size. */
+    public void setScreenSize(int w, int h) {
+        this.screenW = w;
+        this.screenH = h;
     }
 
     private void engineInput(){
@@ -266,8 +276,8 @@ public class Submarine extends Character {
      */
     private void drawDeathScreen(GameEngine engine) {
         // We need screen dimensions — derive them from StdDraw scale
-        double W = StdDraw.getWidth();
-        double H = StdDraw.getHeight();
+        double W = screenW;
+        double H = screenH;
 
         // Semi-transparent dark overlay
         StdDraw.setPenColor(new java.awt.Color(0, 0, 0, 160));

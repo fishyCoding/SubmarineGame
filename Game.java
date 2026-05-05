@@ -159,6 +159,7 @@ public class Game {
 
     private static void spawnPlayer() {
         player = new Submarine("Player", SPAWN_X, SPAWN_Y, PLAYER_MAX_HP, null);
+        player.setScreenSize(WIDTH, HEIGHT);   // ← add this
         System.out.println("Spawned: " + player);
     }
 
