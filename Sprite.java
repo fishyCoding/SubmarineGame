@@ -5,8 +5,9 @@ import java.awt.Color;
  * Subclasses implement rendering, collision, and serialization.
  */
 public abstract class Sprite {
-    protected float x;
-    protected float y;
+    
+    float x;
+    float y;
     protected Color color; // Use a single Color object
 
     // Constructor for RGB ints (converts them to Color)
@@ -27,10 +28,6 @@ public abstract class Sprite {
     public float getY() { return y; }
     
     // Updated getters to pull from the Color object
-    public Color getColor() { return color; }
-    public int getR()   { return color.getRed(); }
-    public int getG()   { return color.getGreen(); }
-    public int getB()   { return color.getBlue(); }
 
     public void setX(float x)         { this.x = x; }
     public void setY(float y)         { this.y = y; }

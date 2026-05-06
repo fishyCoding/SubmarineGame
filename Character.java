@@ -80,45 +80,27 @@ public abstract class Character extends Sprite {
         return rock.contains(x, y);
     }
 
-    // ── Rendering ──────────────────────────────────────────────────────────────
 
     @Override
     public void draw(GameEngine engine) {
         double sx = engine.worldToScreenX(x);
         double sy = engine.worldToScreenY(y);
 
-            StdDraw.setPenColor(color);
-            StdDraw.filledCircle(sx, sy, collisionRadius);
+        StdDraw.setPenColor(color);
+        StdDraw.filledCircle(sx, sy, collisionRadius);
         
     }
 
-    // ── Serialization ──────────────────────────────────────────────────────────
-
-    @Override
-    public String serialize() {
-        return String.format("CHARACTER %s %.2f %.2f %.2f %.2f %.2f",
-                id, x, y, vx, vy, angle);
-    }
-
-    // ── Getters / setters ──────────────────────────────────────────────────────
-    //just putting it in here if we need an id system
-    public String getId() { 
-        return id; 
-    }
-    
-    public float  getVx() { return vx; }
-    public float  getVy() { return vy; }
-    public float  getAngle() { return angle; }
-    public float  getSpeed() { return (float) Math.hypot(vx, vy); }
-    public float  getCollisionRadius(){ return collisionRadius; }
+    // getters and setters
+    public String getId() { return id; }
+    public float getVx() { return vx; }
+    public float getVy() { return vy; }
+    public float getAngle() { return angle; }
+    public float getSpeed() { return (float) Math.hypot(vx, vy); }
+    public float getCollisionRadius(){ return collisionRadius; }
 
     public void setAngle(float angle){ this.angle = angle % 360; }
 
     @Override public String getType() { return "CHARACTER"; }
 
-    @Override
-    public String toString() {
-        return String.format("Character[%s pos=(%.1f,%.1f) vel=(%.2f,%.2f) angle=%.1f]",
-                id, x, y, vx, vy, angle);
-    }
 }

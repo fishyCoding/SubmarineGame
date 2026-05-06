@@ -3,40 +3,42 @@ import java.util.*;
 /**
  * TorpedoSystem — owns exactly one torpedo.
  *
- * Responsibilities:
- *   - Launch from player position/heading
- *   - Steer each tick toward a direction (screen-center → mouse angle)
- *   - Check collision with rocks and seafloor
- *   - Detonate on command or collision, applying damage
- *   - Draw the torpedo in the world
- *
- * Everything contact-list / UI / target-selection related lives in Game.
+ * Things it controls:
+ * Launching a torpedo
+ * Steering and moving the torpedo (calls torpedo class do this)
+ * Check collisions
+ * Detonation
+ * Drawing the torpedo (uses torpedo's draw method)
  */
 public class TorpedoSystem {
 
     private Torpedo torpedo = null;
 
-    public boolean hasTorpedo() { return torpedo != null && torpedo.isAlive(); }
-    public Torpedo getTorpedo() { return torpedo; }
+    public boolean hasTorpedo() { 
+        return torpedo != null && torpedo.isAlive(); 
+    }
+    public Torpedo getTorpedo() { 
+        return torpedo;
+    }
 
     public void launchTorpedo(float playerX, float playerY, float playerAngle) {
         if (hasTorpedo()) return;
         torpedo = new Torpedo("player", playerX, playerY, playerAngle);
-        System.out.println("Torpedo launched!");
     }
 
     /**
      * Steer + move the torpedo, then check collisions.
      * Returns true if the torpedo just detonated this tick.
      */
-    public boolean update(double mouseScreenX, double mouseScreenY,
-                          double screenCX, double screenCY,
-                          List<Rock> rocks, BottomRockLayer floor,
-                          Map<String, Submarine> remoteSubs,
-                          Submarine localPlayer) {
-        if (!hasTorpedo()) return false;
+    public boolean update(double mouseScreenX, double mouseScreenY, double screenCX, double screenCY, List<Rock> rocks, BottomRockLayer floor, Map<String, Submarine> remoteSubs, Submarine localPlayer) {
+        
+        if (!hasTorpedo()){
+             return false;
+        }
 
+        //handle torpedo mvment on torpedo's class bc torpedo has all the vars for mvment mechs
         torpedo.update(mouseScreenX, mouseScreenY, screenCX, screenCY);
+        
 
         // Rock collision
         for (Rock rock : rocks) {
@@ -62,7 +64,9 @@ public class TorpedoSystem {
     }
 
     private void detonate(Map<String, Submarine> remoteSubs, Submarine localPlayer) {
-        if (torpedo == null) return;
+        if (torpedo == null){
+            return;
+        }
         for (Submarine s : remoteSubs.values()) {
             if (torpedo.inBlastRadius(s.getX(), s.getY())) {
                 s.takeDamage(torpedo.getDamage());

@@ -22,14 +22,13 @@ public class BottomRockLayer {
     private final float[] worldY;
     private final String  saveFile;
 
-    public BottomRockLayer(float worldStart, float worldEnd,
-                           float seafloorTop, float seafloorBase,
-                           String saveFile) {
+    public BottomRockLayer(float worldStart, float worldEnd, float seafloorTop, float seafloorBase, String saveFile) {
         this.seafloorBase = seafloorBase;
-        this.saveFile     = saveFile;
-        this.worldX       = new float[NUM_POINTS];
-        this.worldY       = new float[NUM_POINTS];
+        this.saveFile = saveFile;
+        this.worldX = new float[NUM_POINTS];
+        this.worldY = new float[NUM_POINTS];
 
+        //load points into two seperate lists, one for x and one for y coords
         float step = (worldEnd - worldStart) / (NUM_POINTS - 1);
         for (int i = 0; i < NUM_POINTS; i++) {
             worldX[i] = worldStart + i * step;
@@ -42,6 +41,8 @@ public class BottomRockLayer {
     // ── Persistence ────────────────────────────────────────────────────────────
 
     public void save() {
+
+        //used by the Main.java file (one for editing the map)
         try (PrintWriter pw = new PrintWriter(new FileWriter(saveFile))) {
             pw.println("# BottomRockLayer control points — worldX worldY per line");
             for (int i = 0; i < NUM_POINTS; i++)

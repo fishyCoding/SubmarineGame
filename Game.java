@@ -16,24 +16,27 @@ import java.util.Map;
  */
 public class Game {
 
-    // ── Canvas ─────────────────────────────────────────────────────────────────
-    private static final int    WIDTH         = 1300;
-    private static final int    HEIGHT        = 800;
-    private static final double CX = WIDTH  / 2.0;
-    private static final double CY = HEIGHT / 2.0;
+    // Canvas
+    private static final int WIDTH = 1300;
+    private static final int HEIGHT = 800;
+    private static final double CX = WIDTH /2.0;
+    private static final double CY = HEIGHT /2.0;
 
-    // ── World ──────────────────────────────────────────────────────────────────
-    private static final float  SURFACE_LEVEL = 0f;
-    private static final float  SEAFLOOR_TOP  = -1820f;
-    private static final float  SEAFLOOR_BASE = -2400f;
-    private static final String DATA_FILE     = "sprites.txt";
+    // World setup
+    private static final float SURFACE_LEVEL = 0f;
+    private static final float SEAFLOOR_TOP  = -1820f;
+    private static final float SEAFLOOR_BASE = -2400f;
+    //rock data
+    private static final String DATA_FILE = "sprites.txt";
+    //seafloor data
+    private static final String SEAFLOOR_FILE = "seafloor.txt";
 
-    // ── Player spawn ───────────────────────────────────────────────────────────
-    private static final float  SPAWN_X       = 800f;
-    private static final float  SPAWN_Y       = -100f;
+
+    // Player Spawn 
+
     private static final int    PLAYER_MAX_HP = 100;
 
-    // ── Radar ping ─────────────────────────────────────────────────────────────
+    //Radar Ping
     private static final long   PING_DURATION_MS = 2500;
     private static long         pingStartMs      = -1;
     private static boolean      rWasDown         = false;
@@ -46,38 +49,35 @@ public class Game {
             new java.util.concurrent.ConcurrentHashMap<>();
     // [0]=worldX [1]=worldY [2]=alpha (we recompute from pingAlpha each frame)
 
-    /**
-     * When true, passive sonar uses ray-casting to check line-of-sight through
-     * rocks before adding a sound's contribution. Set false for the original
-     * unobstructed behaviour.
-     */
-    private static final boolean USE_RAYTRACE_SONAR = true;
 
-    // ── Systems ────────────────────────────────────────────────────────────────
-    private static GameEngine      engine;
+
+    // System classes
+
+    private static GameEngine engine;
     private static BottomRockLayer bottomLayer;
-    private static Water           water;
-    private static Submarine       player;
+    private static Water water;
+    private static Submarine player;
 
-    // ── Sound system ───────────────────────────────────────────────────────────
-    private static final List<Sound> sounds      = new ArrayList<>();
-    private static EngineSound       engineSound;
+    // Sound 
+    private static final List<Sound> sounds = new ArrayList<>();
+    private static EngineSound engineSound; //gets attached to sub
 
     // ── Torpedo system ─────────────────────────────────────────────────────────
     private static TorpedoSystem torpedoSystem;
-    private static final List<String>         contactIds  = new ArrayList<>();
-    private static final Map<String, float[]> contactPos  = new java.util.LinkedHashMap<>();
-    private static int                        selectedIdx  = -1;  // index into contactIds
+    private static final List<String> contactIds = new ArrayList<>();
+    private static final Map<String, float[]> contactPos = new java.util.LinkedHashMap<>();
+    private static int selectedIdx  = -1; //none are selected at -1
 
-    // Mouse-hold test sound tracking
-    private static boolean  mouseWasDown   = false;
 
-    // ── Networking ─────────────────────────────────────────────────────────────
-    private static NetworkClient   netClient  = null;
-    private static NetworkServer   netServer  = null;
-    private static boolean         multiplayer = false;
+    // Network
+    private static NetworkClient netClient  = null;
+    private static NetworkServer netServer  = null;
+    private static boolean multiplayer = false;
 
+    //tick counter
     private static long tick = 0;
+    private static boolean mouseWasDown = false;
+
 
     public static void main(String[] args) {
         parseArgs(args);
@@ -91,7 +91,7 @@ public class Game {
         gameLoop();
     }
 
-    // ── Argument parsing ───────────────────────────────────────────────────────
+    // Gets arguments
 
     private static void parseArgs(String[] args) {
         for (String a : args) {
@@ -101,14 +101,15 @@ public class Game {
         }
     }
 
-    // ── Network setup ──────────────────────────────────────────────────────────
-
+    //set up netowrk. 
     private static void setupNetwork(String[] args) {
+        
+        //if its solo, skip all the network setup
         if (!multiplayer) {
-            System.out.println("Solo mode — no network.");
             return;
         }
 
+        //if the length is 0, then just use solo
         String mode = args.length > 0 ? args[0] : "--solo";
 
         try {
@@ -116,10 +117,16 @@ public class Game {
                 netServer = new NetworkServer();
                 netServer.start();
                 System.out.println("Hosting — server started.");
+
+                //delay a bit
                 Thread.sleep(300);
+
+                //connects to new server with itself as the local host
                 netClient = new NetworkClient("localhost", "Host");
                 netClient.connect();
             } else if (mode.equals("--join") && args.length > 1) {
+                //if joining
+                //get ip
                 String ip = args[1];
                 netClient = new NetworkClient(ip, "Player");
                 netClient.connect();
@@ -129,6 +136,7 @@ public class Game {
                 multiplayer = false;
             }
         } catch (Exception e) {
+            //couldn't connect: run solo
             System.err.println("Fail " + e.getMessage());
             System.err.println("Running w/o network");
             multiplayer = false;
@@ -144,21 +152,23 @@ public class Game {
         StdDraw.setXscale(0, WIDTH);
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
+
+        //print ip or localhost if multiplayer, otherwise solo
         String title = multiplayer ? netClient.host : "Solo";
         StdDraw.setTitle(title);
     }
 
-    private static final String SEAFLOOR_FILE = "seafloor.txt";
 
     private static void setupWorld() {
+
+        //engine handles sprites collision and rendering 
         engine = new GameEngine(DATA_FILE);
         bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, SEAFLOOR_TOP, SEAFLOOR_BASE, SEAFLOOR_FILE);
         water = new Water(HEIGHT, WIDTH, SURFACE_LEVEL, engine);
-        engine.setCamera(SPAWN_X - (float) CX, SPAWN_Y - (float) CY);
     }
 
     private static void spawnPlayer() {
-        player = new Submarine("Player", SPAWN_X, SPAWN_Y, PLAYER_MAX_HP, null);
+        player = new Submarine("Player", Spawner.getSpawnX(), Spawner.getSpawnY(), PLAYER_MAX_HP, null);
         System.out.println("Spawned: " + player);
     }
 
@@ -278,8 +288,7 @@ public class Game {
 
     /** Called by the death screen button once the player confirms respawn. */
     public static void triggerRespawn() {
-        player.respawn(SPAWN_X, SPAWN_Y);
-        engine.setCamera(SPAWN_X - (float) CX, SPAWN_Y - (float) CY);
+        player.respawn(Spawner.getSpawnX(), Spawner.getSpawnY());
     }
 
     private static void lockCamera() {
@@ -298,7 +307,7 @@ public class Game {
 
         // ── R — radar ping ─────────────────────────────────────────────────────
         boolean rDown = StdDraw.isKeyPressed('R') || StdDraw.isKeyPressed('r');
-        if (rDown && !rWasDown) {
+        if (rDown && !rWasDown && pingAlpha()==0) {
             pingStartMs = System.currentTimeMillis();
             sounds.add(new RadarSound(player.getX(), player.getY(),
                                       PING_SOUND_STRENGTH, "player_ping"));
@@ -546,6 +555,5 @@ public class Game {
         System.out.println("    --host          host a game");
         System.out.println("    --join <ip>     join a game");
         System.out.println();
-        System.out.println("  Ray-trace sonar: " + USE_RAYTRACE_SONAR);
     }
 }

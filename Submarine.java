@@ -100,7 +100,7 @@ public class Submarine extends Character {
      */
     public void handleRespawnClick() {
         if (respawnReady) {
-            respawn(800, -80);   // near surface, jitter applied inside respawn()
+            respawn(Spawner.getSpawnX(), Spawner.getSpawnY());   // near surface, jitter applied inside respawn()
         }
     }
 

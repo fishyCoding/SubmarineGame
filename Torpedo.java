@@ -4,15 +4,19 @@ import java.awt.Color;
  * Torpedo — fired by the player, steered by mouse, detonated on second click.
  *
  * Physics:
- *   - Constant forward speed (SPEED world-units/tick)
- *   - Each tick, heading smoothly rotates toward the mouse world position
- *   - Collides with foreground rocks and the seafloor
+ * Starts slow than accelerates to max speed
+ * Steers toward mouse direction: angle from center of screen to mouse
+ * Collision with rocks
  *
- * Lifecycle:
- *   1. Created at player position with player's heading
- *   2. update(mouseWX, mouseWY) called every tick — steers + moves
- *   3. explode() called on second click OR on collision
- *   4. isAlive() returns false — caller removes it and applies damage
+ * Lifetime breif:
+ * 
+ * Created at player position with player's angle
+ * 
+ * update(mouseWX, mouseWY) every tick for steering
+ * 
+ * explode() called on second click OR on collision
+ * 
+ * isAlive() returns false — caller removes it and applies damage
  */
 public class Torpedo extends Character {
 
@@ -50,29 +54,32 @@ public class Torpedo extends Character {
      */
     public void update(double mouseScreenX, double mouseScreenY,
                        double screenCX, double screenCY) {
-        if (!alive) return;
+        if (!alive){
+             return;
+        }
 
+        //adds to accelaration
         if (speed<MAXSPEED) {
             speed = Math.min(speed + ACCELERATION, MAXSPEED);
         }
-        // Angle from screen center to mouse — this is a stable world direction
-        // regardless of where the camera is
-        double targetAngle = Math.toDegrees(
-                Math.atan2(mouseScreenY - screenCY, mouseScreenX - screenCX));
 
-        // Shortest angular delta
+        // Angle from screen center to mouse for sterring
+        double targetAngle = Math.toDegrees(Math.atan2(mouseScreenY - screenCY, mouseScreenX - screenCX));
+
+        // Shortest angular delta (should it rotate up or down)
         double delta = targetAngle - angle;
         while (delta >  180) delta -= 360;
         while (delta < -180) delta += 360;
 
-        // Clamp turn per tick
+        // Clamp turn by maximum turn rate
         if (delta >  TURN_RATE) delta =  TURN_RATE;
         if (delta < -TURN_RATE) delta = -TURN_RATE;
 
+        //add angle change to angle, apply % bc it shouldnt be over 360
         angle += (float) delta;
         angle  = angle % 360;
 
-        // Recompute velocity at constant speed
+        // Set velocity to vector
         double rad = Math.toRadians(angle);
         vx = (float)(Math.cos(rad) * speed);
         vy = (float)(Math.sin(rad) * speed);
@@ -80,15 +87,14 @@ public class Torpedo extends Character {
         super.update();
     }
 
-    /** Detonate — marks torpedo as dead. Caller checks blast radius for damage. */
+    /** Detonation. Game.java handles rest */
     public void explode() {
         alive    = false;
         exploded = true;
     }
 
     /**
-     * Returns true if (tx, ty) is within blast radius — used by caller to
-     * apply damage to any submarine at that position.
+     * Returns t if torpedo is in blasting radius, used for checking damage
      */
     public boolean inBlastRadius(float tx, float ty) {
         float dx = tx - x, dy = ty - y;
@@ -101,7 +107,7 @@ public class Torpedo extends Character {
     public float   getBlastRadius() { return BLAST_RADIUS; }
     public String  getOwnerId() { return ownerId; }
 
-    // ── Rendering ──────────────────────────────────────────────────────────────
+    // Render
 
     @Override
     public void draw(GameEngine engine) {
@@ -130,14 +136,6 @@ public class Torpedo extends Character {
         StdDraw.setPenRadius(0.002);
         StdDraw.polygon(bx, by);
 
-        // Wake trail — small dots behind
-        StdDraw.setPenColor(new Color(100, 160, 200, 180));
-        StdDraw.setPenRadius(0.003);
-        for (int i = 1; i <= 3; i++) {
-            double wx = sx - cos * i * 8;
-            double wy = sy - sin * i * 8;
-            StdDraw.point(wx, wy);
-        }
         StdDraw.setPenRadius(0.002);
     }
 

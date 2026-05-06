@@ -37,26 +37,8 @@ public class RadarScreen {
     private static final Color COL_LABEL     = Color.decode("#00c83c");
     private static final Color COL_TITLE     = Color.decode("#00B446");
 
-    /**
-     * Draw the radar screen.
-     *
-     * @param screenW    canvas width  (pixels)
-     * @param screenH    canvas height (pixels)
-     * @param playerX    player world X
-     * @param playerY    player world Y
-     * @param pingAlpha  0 = no ping / fully faded, 1 = fresh ping
-     * @param contacts   map of playerId → float[]{worldX, worldY} captured at ping time
-     * @param rocks      list of rocks currently in the world for line-of-sight occlusion
-     */
-    public static void draw(int screenW, int screenH,
-                            float playerX, float playerY,
-                            float pingAlpha,
-                            Map<String, float[]> contacts,
-                            List<Rock> rocks,
-                            float[] torpedoPos,
-                            BottomRockLayer bottomLayer) {
-
-        // Panel centre in screen coords (top-right corner)
+    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer) {
+        //center x and y var of the panel
         double cx = screenW - MARGIN - RADIUS;
         double cy = screenH - MARGIN - RADIUS;
 
@@ -237,9 +219,7 @@ public class RadarScreen {
      * converted to a radar-pixel offset from the panel centre, then clipped to
      * the circular boundary before drawing.
      */
-    private static void drawRockMinimap(List<Rock> rocks,
-                                        float playerX, float playerY,
-                                        double cx, double cy, double scale) {
+    private static void drawRockMinimap(List<Rock> rocks, float playerX, float playerY, double cx, double cy, double scale) {
         if (rocks == null) return;
         StdDraw.setPenRadius(0.0012);
 
@@ -247,8 +227,7 @@ public class RadarScreen {
             java.util.List<Float> verts = rock.getVertices();
             int count = verts.size() / 2;
             if (count < 2) continue;
-
-            // Foreground rocks slightly brighter than background ones
+            //only draw frground rocks
             if(rock.getDepth() == 1){
             Color col = Color.decode("#8b8b8b");
 
@@ -256,23 +235,21 @@ public class RadarScreen {
 
             float rockWX = rock.getX();
             float rockWY = rock.getY();
-
+            //loops through rock verts
             for (int i = 0; i < count; i++) {
+                //stores next index for vert, uses % to loop around 
                 int ni = (i + 1) % count;
 
-                // World positions of this edge
                 float ax = rockWX + verts.get(i  * 2);
                 float ay = rockWY + verts.get(i  * 2 + 1);
                 float bx = rockWX + verts.get(ni * 2);
                 float by = rockWY + verts.get(ni * 2 + 1);
 
-                // Radar-pixel offsets from panel centre (world Y up = radar Y up)
                 double rax = (ax - playerX) * scale;
                 double ray = (ay - playerY) * scale;
                 double rbx = (bx - playerX) * scale;
                 double rby = (by - playerY) * scale;
 
-                // Clip and draw — clips to circle of radius (RADIUS - 1)
                 drawClippedSegment(cx, cy, rax, ray, rbx, rby, RADIUS - 1.0);
             }
         }

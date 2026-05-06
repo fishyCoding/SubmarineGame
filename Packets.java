@@ -30,11 +30,8 @@ public class Packets {
         public String playerId;
     }
 
-    // ── Position update — UDP, ~10 hz ─────────────────────────────────────────
-    /**
-     * Sent by each client every 6 ticks with their submarine's current state.
-     * Server broadcasts this to all OTHER clients.
-     */
+    // Packets
+    //For gameplay updates
     public static class SubmarineState {
         public String playerId;
         public float  x;
@@ -46,50 +43,29 @@ public class Packets {
         public int    health;
     }
 
-    // ── Sound events — TCP (reliable) ─────────────────────────────────────────
-    /**
-     * Sent when a player spawns any sound (radar ping, engine burst, test sound).
-     * Server broadcasts to all OTHER clients so their sonar reacts.
-     */
     public static class SoundEvent {
         public String playerId;
         public float  x;
         public float  y;
         public float  strength;
-        /** "radar", "engine", "background", "test" */
+        // ie "radar" "engine" "background"
         public String type;
     }
 
-    // ── Radar ping — TCP ──────────────────────────────────────────────────────
-    /**
-     * Sent when a player fires a radar ping.
-     * Separate from SoundEvent so clients know to start the visual ping animation.
-     */
     public static class RadarPing {
         public String playerId;
         public float  x;
         public float  y;
     }
 
-    // ── Torpedo position — UDP (~every tick while in flight) ──────────────────
-    /**
-     * Broadcast by the firing client each tick so others can render the torpedo.
-     * alive=false means the torpedo just died (detonated or hit something) and
-     * receivers should remove their visual copy.
-     */
     public static class TorpedoState {
-        public String  playerId;  // who fired it
-        public float   x;
+        public String  playerId;
+        public float x;
         public float   y;
         public float   angle;
         public boolean alive;
     }
 
-    // ── Torpedo detonation — TCP (reliable) ───────────────────────────────────
-    /**
-     * Sent once when the torpedo explodes. Receivers check if they are within
-     * blastRadius and apply damage if so.
-     */
     public static class TorpedoDetonate {
         public String playerId;    // who fired it
         public float  x;           // blast world X

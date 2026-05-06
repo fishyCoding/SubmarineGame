@@ -19,7 +19,6 @@ public class BackgroundSound extends Sound {
 
     @Override
     public void tick() {
-
         strength = AMBIENT_STRENGTH;
     }
 
