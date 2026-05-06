@@ -6,21 +6,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * NetworkServer — dedicated relay server for the submarine game.
- *
- * Responsibilities:
- *   - Accept client connections and assign player IDs
- *   - Relay SubmarineState UDP packets to all OTHER connected clients
- *   - Relay SoundEvent and RadarPing TCP packets to all OTHER clients
- *   - Notify all clients when someone joins or leaves
- *
- * This is a pure relay — it holds no authoritative game state.
- * Each client is authoritative over their own submarine.
- *
- * Run this on whoever is hosting (or a VPS).
- * Usage: java NetworkServer   (or launch via main())
- */
+// Dedicated relay server. Pure relay — holds no authoritative game state.
+// Each client is authoritative over their own submarine.
+// Run on whoever is hosting: java NetworkServer
 public class NetworkServer {
 
     public static final int TCP_PORT = 54555;
@@ -28,11 +16,9 @@ public class NetworkServer {
 
     private final Server server;
 
-    // Maps Kryonet connection ID → player ID string
+    // maps Kryonet connection ID → player ID string
     private final Map<Integer, String> connectedPlayers = new HashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(1);
-
-    // ── Entry point (run standalone) ──────────────────────────────────────────
 
     public static void main(String[] args) throws IOException {
         NetworkServer ns = new NetworkServer();
@@ -42,14 +28,12 @@ public class NetworkServer {
         ns.stop();
     }
 
-    // ── Constructor ───────────────────────────────────────────────────────────
-
     public NetworkServer() {
         server = new Server(65536, 65536);
         registerClasses(server.getKryo());
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    // ── Lifecycle ────────────────────────────────────────────────────────────────
 
     public void start() throws IOException {
         server.start();
@@ -63,12 +47,8 @@ public class NetworkServer {
         System.out.println("Server stopped.");
     }
 
-    // ── Kryonet class registration ────────────────────────────────────────────
-
-    /**
-     * Every class sent over the network MUST be registered here,
-     * on both server AND client, in the SAME ORDER.
-     */
+    // Every class sent over the network MUST be registered here, on both server
+    // AND client, in the SAME ORDER.
     public static void registerClasses(com.esotericsoftware.kryo.Kryo kryo) {
         kryo.register(Packets.JoinRequest.class);
         kryo.register(Packets.JoinResponse.class);
@@ -80,13 +60,12 @@ public class NetworkServer {
         kryo.register(Packets.TorpedoDetonate.class);
     }
 
-    // ── Listener ──────────────────────────────────────────────────────────────
+    // ── Listener ─────────────────────────────────────────────────────────────────
 
     private class ServerListener extends Listener {
 
         @Override
         public void connected(Connection conn) {
-            // Just log — wait for JoinRequest before assigning an ID
             System.out.println("New connection: " + conn.getID());
         }
 
@@ -97,7 +76,6 @@ public class NetworkServer {
 
             System.out.println("Player disconnected: " + playerId);
 
-            // Tell everyone else this player left
             Packets.PlayerLeft left = new Packets.PlayerLeft();
             left.playerId = playerId;
             server.sendToAllExceptTCP(conn.getID(), left);
@@ -106,27 +84,21 @@ public class NetworkServer {
         @Override
         public void received(Connection conn, Object object) {
 
-            // ── Join request ──────────────────────────────────────────────────
             if (object instanceof Packets.JoinRequest) {
                 Packets.JoinRequest req = (Packets.JoinRequest) object;
 
-                // Assign a unique server-side ID
                 String assignedId = "player_" + nextId.getAndIncrement();
                 connectedPlayers.put(conn.getID(), assignedId);
-                System.out.println("Player joined: " + assignedId
-                        + " (requested name: " + req.playerId + ")");
+                System.out.println("Player joined: " + assignedId + " (requested: " + req.playerId + ")");
 
-                // Send confirmation back to this client
                 Packets.JoinResponse resp = new Packets.JoinResponse();
                 resp.assignedId = assignedId;
-                resp.spawnX     = 800f;
-                resp.spawnY     = -100f;
+                resp.spawnX = 800f;
+                resp.spawnY = -100f;
                 conn.sendTCP(resp);
                 return;
             }
 
-            // ── Submarine state (UDP position update) ─────────────────────────
-            // Relay to everyone except the sender — no processing needed.
             if (object instanceof Packets.SubmarineState) {
                 Packets.SubmarineState state = (Packets.SubmarineState) object;
                 state.playerId = connectedPlayers.get(conn.getID());
@@ -135,7 +107,6 @@ public class NetworkServer {
                 return;
             }
 
-            // ── Sound event (TCP) ─────────────────────────────────────────────
             if (object instanceof Packets.SoundEvent) {
                 Packets.SoundEvent ev = (Packets.SoundEvent) object;
                 ev.playerId = connectedPlayers.get(conn.getID());
@@ -144,7 +115,6 @@ public class NetworkServer {
                 return;
             }
 
-            // ── Radar ping (TCP) ──────────────────────────────────────────────
             if (object instanceof Packets.RadarPing) {
                 Packets.RadarPing ping = (Packets.RadarPing) object;
                 ping.playerId = connectedPlayers.get(conn.getID());
@@ -152,7 +122,6 @@ public class NetworkServer {
                 server.sendToAllExceptTCP(conn.getID(), ping);
             }
 
-            // ── Torpedo position (UDP) ─────────────────────────────────────────
             if (object instanceof Packets.TorpedoState) {
                 Packets.TorpedoState t = (Packets.TorpedoState) object;
                 t.playerId = connectedPlayers.get(conn.getID());
@@ -160,7 +129,6 @@ public class NetworkServer {
                 server.sendToAllExceptUDP(conn.getID(), t);
             }
 
-            // ── Torpedo detonation (TCP) ───────────────────────────────────────
             if (object instanceof Packets.TorpedoDetonate) {
                 Packets.TorpedoDetonate d = (Packets.TorpedoDetonate) object;
                 d.playerId = connectedPlayers.get(conn.getID());

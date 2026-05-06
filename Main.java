@@ -1,24 +1,24 @@
 public class Main {
 
-    private static final int    WIDTH         = 1600;
-    private static final int    HEIGHT        = 800;
-    private static final float  SURFACE_LEVEL = 0f;
-    private static final float  SEAFLOOR_TOP  = -1820f;
-    private static final float  SEAFLOOR_BASE = -2400f;
-    private static final String DATA_FILE     = "sprites.txt";
+    private static final int WIDTH = 1600;
+    private static final int HEIGHT = 800;
+    private static final float SURFACE_LEVEL = 0f;
+    private static final float SEAFLOOR_TOP = -1820f;
+    private static final float SEAFLOOR_BASE = -2400f;
+    private static final String DATA_FILE = "sprites.txt";
     private static final String SEAFLOOR_FILE = "seafloor.txt";
-    private static final float  WORLD_START   = -WIDTH;
-    private static final float  WORLD_END     = WIDTH * 4f;
+    private static final float WORLD_START = -WIDTH;
+    private static final float WORLD_END = WIDTH * 4f;
 
-    private static GameEngine      engine;
+    private static GameEngine engine;
     private static BottomRockLayer bottomLayer;
-    private static Sprite          selectedSprite;
-    private static int             currentDepth = 0;
+    private static Sprite selectedSprite;
+    private static int currentDepth = 0;
 
     private static boolean mouseWasDown = false;
-    private static float   lastMouseX, lastMouseY;
+    private static float lastMouseX, lastMouseY;
 
-    static Water    watergradient;
+    static Water watergradient;
     static EngineUI UI;
 
     public static void main(String[] args) {
@@ -27,11 +27,10 @@ public class Main {
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
 
-        engine      = new GameEngine(DATA_FILE);
+        engine = new GameEngine(DATA_FILE);
         engine.panCamera(0, -200);
         bottomLayer = new BottomRockLayer(WORLD_START, WORLD_END, SEAFLOOR_TOP, SEAFLOOR_BASE, SEAFLOOR_FILE);
 
-        // Add seafloor control points as sprites so they're always clickable/draggable
         for (int i = 0; i < BottomRockLayer.NUM_POINTS; i++)
             engine.addSeafloorPoint(new SeafloorPoint(bottomLayer, i));
 
@@ -49,10 +48,10 @@ public class Main {
     }
 
     private static void handleCam() {
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT))  engine.panCamera(-10,  0);
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT)) engine.panCamera( 10,  0);
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT))  engine.panCamera(-10, 0);
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT)) engine.panCamera( 10, 0);
         if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_UP))    engine.panCamera(  0, 10);
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN))  engine.panCamera(  0,-10);
+        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN))  engine.panCamera(  0, -10);
     }
 
     private static void handleInput() {
@@ -99,8 +98,8 @@ public class Main {
 
         boolean mouseDown = StdDraw.isMousePressed();
         boolean shiftDown = StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_SHIFT);
-        float   mouseX    = worldMouseX();
-        float   mouseY    = worldMouseY();
+        float mouseX = worldMouseX();
+        float mouseY = worldMouseY();
 
         if (mouseDown && !mouseWasDown) {
             if (shiftDown && selectedSprite instanceof Rock) {
@@ -138,12 +137,10 @@ public class Main {
 
         bottomLayer.draw(engine);
 
-        // Draw seafloor handles on top of the floor
         for (Sprite s : engine.getSprites())
             if (s instanceof SeafloorPoint)
                 s.draw(engine);
 
-        // Highlight selected sprite
         if (selectedSprite != null) {
             double sx = engine.worldToScreenX(selectedSprite.getX());
             double sy = engine.worldToScreenY(selectedSprite.getY());
@@ -155,7 +152,7 @@ public class Main {
         UI.drawUI(null, currentDepth, 1.0f);
     }
 
-    public  static float worldMouseX() { return engine.screenToWorldX(StdDraw.mouseX()); }
+    public static float worldMouseX() { return engine.screenToWorldX(StdDraw.mouseX()); }
     private static float worldMouseY() { return engine.screenToWorldY(StdDraw.mouseY()); }
 
     private static void printHelp() {

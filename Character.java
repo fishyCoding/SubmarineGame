@@ -1,65 +1,45 @@
 import java.awt.Color;
 
-/**
- * Character — base class for every living entity in the game world.
- *
- * Stores position, velocity, heading, and a circular hitbox.
- * Physics primitives that belong to ALL characters (drag, integration)
- * live here. Movement mechanics that are specific to a vehicle or creature
- * (thrust direction, turning rate, buoyancy) belong in subclasses.
- */
+// Base class for every entity in the game world.
+// Stores position, velocity, heading, and a circular hitbox.
 public abstract class Character extends Sprite {
 
-    // ── Physics state ──────────────────────────────────────────────────────────
-    protected float vx;       // velocity x  (world units / tick)
-    protected float vy;       // velocity y  (world units / tick)
-    protected float angle;    // heading in degrees  (0 = right, 90 = up)
+    // physics state
+    protected float vx;
+    protected float vy;
+    protected float angle; // degrees (0 = right, 90 = up)
 
-
-
-    // ── Identity ───────────────────────────────────────────────────────────────
     protected String id;
-
-    // ── Collision ──────────────────────────────────────────────────────────────
     protected float collisionRadius;
 
-
-    public Character(String id,float x, float y,float collisionRadius,String imagePath,float imageHalfW, float imageHalfH) {
+    public Character(String id, float x, float y, float collisionRadius, String imagePath, float imageHalfW, float imageHalfH) {
         super(x, y, Color.WHITE);
         this.id = id;
         this.collisionRadius = collisionRadius;
-
         this.vx = 0;
         this.vy = 0;
         this.angle = 0;
     }
 
-    // ── Physics ────────────────────────────────────────────────────────────────
+    // ── Physics ──────────────────────────────────────────────────────────────────
 
-    /**
-     * Integrate velocity into position. Override to add gravity, steering, etc.
-     */
     public void update() {
         x += vx;
         y += vy;
     }
 
-    /**
-     * Apply linear drag — fraction of velocity lost per tick.
-     * 0 = no drag, 1 = instant stop.
-     */
+    // dragCoefficient: 0 = no drag, 1 = instant stop
     public void applyDrag(float dragCoefficient) {
         vx *= (1f - dragCoefficient);
         vy *= (1f - dragCoefficient);
     }
-
 
     public void setVelocity(float vx, float vy) {
         this.vx = vx;
         this.vy = vy;
     }
 
-    // ── Collision ──────────────────────────────────────────────────────────────
+    // ── Collision ────────────────────────────────────────────────────────────────
 
     @Override
     public boolean contains(float px, float py) {
@@ -68,7 +48,7 @@ public abstract class Character extends Sprite {
     }
 
     public boolean overlaps(Character other) {
-        float dx  = other.x - x, dy = other.y - y;
+        float dx = other.x - x, dy = other.y - y;
         float sum = collisionRadius + other.collisionRadius;
         return dx * dx + dy * dy < sum * sum;
     }
@@ -80,15 +60,12 @@ public abstract class Character extends Sprite {
         return rock.contains(x, y);
     }
 
-
     @Override
     public void draw(GameEngine engine) {
         double sx = engine.worldToScreenX(x);
         double sy = engine.worldToScreenY(y);
-
         StdDraw.setPenColor(color);
         StdDraw.filledCircle(sx, sy, collisionRadius);
-        
     }
 
     // getters and setters
@@ -97,10 +74,9 @@ public abstract class Character extends Sprite {
     public float getVy() { return vy; }
     public float getAngle() { return angle; }
     public float getSpeed() { return (float) Math.hypot(vx, vy); }
-    public float getCollisionRadius(){ return collisionRadius; }
+    public float getCollisionRadius() { return collisionRadius; }
 
-    public void setAngle(float angle){ this.angle = angle % 360; }
+    public void setAngle(float angle) { this.angle = angle % 360; }
 
     @Override public String getType() { return "CHARACTER"; }
-
 }

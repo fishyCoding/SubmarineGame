@@ -1,135 +1,98 @@
 public class Submarine extends Character {
 
-    //player state variablees
     private int maxHealth;
     private int health;
     private boolean alive;
     private float rudderAngle = 0f;
 
-    // Death / respawn state
-    private boolean dead        = false;   // true after die(), before respawn
-    private long    deathTimeMs = 0L;      // System.currentTimeMillis() at death
-    private static final long DEATH_PAUSE_MS = 5000L;  // 5-second countdown
-    private boolean respawnReady = false;  // true once countdown expires
+    // death / respawn state
+    private boolean dead = false;
+    private long deathTimeMs = 0L;
+    private static final long DEATH_PAUSE_MS = 5000L;
+    private boolean respawnReady = false;
 
-    // Physics constants
-    private static final float THRUST_ACCEL = 0.35f;  // world-units / tick²
-    private static final float VERTICAL_ACCEL = 0.30f;  // Q/E  world-units / tick²
+    // physics constants
+    private static final float THRUST_ACCEL = 0.35f;
+    private static final float VERTICAL_ACCEL = 0.30f;
     private static final float DRAG = 0.04f;
     private static final float VERTICAL_DRAG = 0.06f;
     private static final float MAX_SPEED = 7f;
 
-    // Rudder constants
-    private static final float RUDDER_RATE = 0.5f;   // dgs per tick for turning
-    private static final float RUDDER_RETURN = 1.5f;   // dgs returning to neutral when released
-    private static final float RUDDER_MAX = 30f;    // max turning angle 
-    private static final float RUDDER_TURN_GAIN = 0.02f;  // degrees of heading change per degree of rudder per unit speed (way too much physics in this project ong)
+    // rudder constants
+    private static final float RUDDER_RATE = 0.5f;
+    private static final float RUDDER_RETURN = 1.5f;
+    private static final float RUDDER_MAX = 30f;
+    private static final float RUDDER_TURN_GAIN = 0.02f;
 
-    //we're replacing this soon don't worry
     private static final float BODY_HALF_W = 30f;
     private static final float BODY_HALF_H = 12f;
 
-
-
     public Submarine(String id, float x, float y, int maxHealth, String imagePath) {
-        super(id, x, y, 28f,imagePath, BODY_HALF_W,BODY_HALF_H);
-        this.maxHealth=maxHealth;
-        this.health=maxHealth;
-        this.alive=true;
+        super(id, x, y, 28f, imagePath, BODY_HALF_W, BODY_HALF_H);
+        this.maxHealth = maxHealth;
+        this.health = maxHealth;
+        this.alive = true;
     }
 
-    private void engineInput(){
+    private void engineInput() {
         if (StdDraw.isKeyPressed('W')) {
             double rad = Math.toRadians(angle);
-            vx += (float) (Math.cos(rad)*THRUST_ACCEL);
-            vy += (float) (Math.sin(rad)*THRUST_ACCEL);
+            vx += (float)(Math.cos(rad) * THRUST_ACCEL);
+            vy += (float)(Math.sin(rad) * THRUST_ACCEL);
         }
         if (StdDraw.isKeyPressed('S')) {
             double rad = Math.toRadians(angle);
-            vx -= (float) (Math.cos(rad)*THRUST_ACCEL);
-            vy -= (float) (Math.sin(rad)*THRUST_ACCEL);
+            vx -= (float)(Math.cos(rad) * THRUST_ACCEL);
+            vy -= (float)(Math.sin(rad) * THRUST_ACCEL);
         }
-
-        if (StdDraw.isKeyPressed('Q'))
-            vy -= VERTICAL_ACCEL;
-        if (StdDraw.isKeyPressed('E'))
-            vy += VERTICAL_ACCEL;
-
+        if (StdDraw.isKeyPressed('Q')) vy -= VERTICAL_ACCEL;
+        if (StdDraw.isKeyPressed('E')) vy += VERTICAL_ACCEL;
     }
 
-    private void handleRudderInput(){
+    private void handleRudderInput() {
         boolean aHeld = StdDraw.isKeyPressed('A');
         boolean dHeld = StdDraw.isKeyPressed('D');
 
-        //turn left
         if (aHeld && !dHeld) {
-            rudderAngle = Math.min(rudderAngle+ RUDDER_RATE, RUDDER_MAX);
-        } 
-        
-        //turn right
-        else if (dHeld && !aHeld) {
-            rudderAngle = Math.max(rudderAngle-RUDDER_RATE, -RUDDER_MAX);
-        } 
-        
-        else {
-            if (rudderAngle > 0){
-                rudderAngle = Math.max(0, rudderAngle - RUDDER_RETURN);
-            }
-            else{                 
-                rudderAngle = Math.min(0, rudderAngle + RUDDER_RETURN);
-            }
+            rudderAngle = Math.min(rudderAngle + RUDDER_RATE, RUDDER_MAX);
+        } else if (dHeld && !aHeld) {
+            rudderAngle = Math.max(rudderAngle - RUDDER_RATE, -RUDDER_MAX);
+        } else {
+            if (rudderAngle > 0) rudderAngle = Math.max(0, rudderAngle - RUDDER_RETURN);
+            else                 rudderAngle = Math.min(0, rudderAngle + RUDDER_RETURN);
         }
     }
- 
+
     public void handleInput() {
         if (!alive) return;
-
-        //rudder controls
         handleRudderInput();
-        
         engineInput();
-
-        //Random testing shit
-        if (StdDraw.isKeyPressed('P'))
-            takeDamage(50);
+        if (StdDraw.isKeyPressed('P')) takeDamage(50);
     }
 
-    /**
-     * Called by Game.java on a fresh mouse-down event while the player is dead.
-     * Respawns if the countdown has finished.
-     */
     public void handleRespawnClick() {
         if (respawnReady) {
-            respawn(Spawner.getSpawnX(), Spawner.getSpawnY());   // near surface, jitter applied inside respawn()
+            respawn(Spawner.getSpawnX(), Spawner.getSpawnY());
         }
     }
 
     @Override
     public void update() {
         if (!alive) {
-            // Advance death countdown
             if (dead && !respawnReady) {
                 long elapsed = System.currentTimeMillis() - deathTimeMs;
-                if (elapsed >= DEATH_PAUSE_MS) {
-                    respawnReady = true;
-                }
+                if (elapsed >= DEATH_PAUSE_MS) respawnReady = true;
             }
             return;
         }
 
-        //basic trig stuff for getting forward vector
-        float forwardSpeed = (float)(vx * Math.cos(Math.toRadians(angle))+ vy * Math.sin(Math.toRadians(angle)));
+        float forwardSpeed = (float)(vx * Math.cos(Math.toRadians(angle)) + vy * Math.sin(Math.toRadians(angle)));
         angle += rudderAngle * RUDDER_TURN_GAIN * forwardSpeed;
-        
-        //just in case if its bigger than 360 yk
-        angle = angle%360;
+        angle = angle % 360;
 
+        vx *= (1f - DRAG);
+        vy *= (1f - VERTICAL_DRAG);
 
-        // Drag
-        vx *= (1f-DRAG);
-        vy *= (1f-VERTICAL_DRAG);
-
-        // Max speed clamp
         float speed = getSpeed();
         if (speed > MAX_SPEED) {
             float scale = MAX_SPEED / speed;
@@ -152,38 +115,35 @@ public class Submarine extends Character {
     }
 
     private void die() {
-        alive         = false;
-        dead          = true;
-        respawnReady  = false;
-        vx            = 0;
-        vy            = 0;
-        deathTimeMs   = System.currentTimeMillis();
+        alive = false;
+        dead = true;
+        respawnReady = false;
+        vx = 0;
+        vy = 0;
+        deathTimeMs = System.currentTimeMillis();
         System.out.println(id + " has been destroyed.");
     }
 
     public void respawn(float rx, float ry) {
-        // add slight random offset so you don't always spawn in the exact same spot
-        float jitterX = (float)((Math.random() - 0.5) * 400);   // ±200 world units
-        float jitterY = (float)((Math.random() - 0.5) * 80);    // ±40  world units (stays near surface)
-        x           = rx + jitterX;
-        y           = ry + jitterY;
-        health      = maxHealth;
-        alive       = true;
-        dead        = false;
-        respawnReady= false;
-        vx          = 0;
-        vy          = 0;
-        angle       = 0;
+        float jitterX = (float)((Math.random() - 0.5) * 400);
+        float jitterY = (float)((Math.random() - 0.5) * 80);
+        x = rx + jitterX;
+        y = ry + jitterY;
+        health = maxHealth;
+        alive = true;
+        dead = false;
+        respawnReady = false;
+        vx = 0;
+        vy = 0;
+        angle = 0;
         rudderAngle = 0;
     }
 
-    // ── Rendering ──────────────────────────────────────────────────────────────
+    // ── Rendering ────────────────────────────────────────────────────────────────
 
     public void drawCentred(double cx, double cy) {
         if (!alive) { drawWreck(cx, cy); return; }
-
         drawSubBody(cx, cy);
-        
     }
 
     private void drawSubBody(double sx, double sy) {
@@ -191,16 +151,15 @@ public class Submarine extends Character {
         double cos = Math.cos(rad);
         double sin = Math.sin(rad);
 
-        // ── Hull — approximated as a rotated ellipse via polygon ───────────────
-        // StdDraw.filledEllipse is always axis-aligned, so we tessellate manually.
-        int   SEGMENTS = 32;
+        // hull — rotated ellipse via polygon (StdDraw.filledEllipse is always axis-aligned)
+        int SEGMENTS = 32;
         double[] hx = new double[SEGMENTS];
         double[] hy = new double[SEGMENTS];
         for (int i = 0; i < SEGMENTS; i++) {
-            double t  = 2 * Math.PI * i / SEGMENTS;
-            double lx = Math.cos(t) * BODY_HALF_W;   // local ellipse point
+            double t = 2 * Math.PI * i / SEGMENTS;
+            double lx = Math.cos(t) * BODY_HALF_W;
             double ly = Math.sin(t) * BODY_HALF_H;
-            hx[i] = sx + lx * cos - ly * sin;         // rotate into world
+            hx[i] = sx + lx * cos - ly * sin;
             hy[i] = sy + lx * sin + ly * cos;
         }
         StdDraw.setPenColor(60, 80, 110);
@@ -210,32 +169,21 @@ public class Submarine extends Character {
         StdDraw.polygon(hx, hy);
         StdDraw.setPenRadius(0.002);
 
-        // ── Rudder — fin at the stern, deflected by rudderAngle ───────────────
-        // Step 1: find the stern in world space (directly behind centre)
+        // rudder fin at the stern, deflected by rudderAngle
         double sternX = sx - cos * BODY_HALF_W;
         double sternY = sy - sin * BODY_HALF_W;
 
-        // Step 2: build the rudder's local axes by rotating the hull axes by
-        //         rudderAngle. This keeps deflection relative to the hull, so
-        //         it can never exceed ±30° visually regardless of world angle.
-        double rudRad = Math.toRadians(rudderAngle);   // deflection only
+        double rudRad = Math.toRadians(rudderAngle);
         double rudCos = Math.cos(rudRad);
         double rudSin = Math.sin(rudRad);
 
-        // Rudder local X axis = hull forward rotated by rudderAngle
-        double rxAxisX =  cos * rudCos - sin * rudSin;
-        double rxAxisY =  sin * rudCos + cos * rudSin;
-        // Rudder local Y axis = hull up rotated by rudderAngle
-        double ryAxisX = -sin * rudCos - cos * rudSin;
-        double ryAxisY = -cos * rudCos + sin * rudSin;  // wait, keep it perpendicular
-        // Actually: rudder Y = perpendicular to rudder X
-        ryAxisX = -rxAxisY;
-        ryAxisY =  rxAxisX;
+        double rxAxisX = cos * rudCos - sin * rudSin;
+        double rxAxisY = sin * rudCos + cos * rudSin;
+        double ryAxisX = -rxAxisY;
+        double ryAxisY = rxAxisX;
 
-        // Step 3: fin corners in rudder-local space
-        //         hinge at (0,0), fin extends backward (negative local-X)
         double rW = 2.5, rH = 11;
-        double[][] rc = {{-rW, 0},{rW, 0},{rW,-rH},{-rW,-rH}};
+        double[][] rc = {{-rW, 0}, {rW, 0}, {rW, -rH}, {-rW, -rH}};
         double[] rfx = new double[4];
         double[] rfy = new double[4];
         for (int i = 0; i < 4; i++) {
@@ -261,26 +209,19 @@ public class Submarine extends Character {
     @Override
     public void draw(GameEngine engine) {
         drawCentred(engine.worldToScreenX(x), engine.worldToScreenY(y));
-        // Death screen is drawn by Game.java at screen level, not here
     }
 
-    /**
-     * Called from Game.java once per frame while dead.
-     * Draws a fullscreen overlay at screen coordinates.
-     */
+    // Called from Game.java once per frame while dead. Draws fullscreen overlay.
     public void drawDeathScreen(int W, int H) {
-
-        // Semi-transparent dark overlay
         StdDraw.setPenColor(new java.awt.Color(0, 0, 0, 160));
         StdDraw.filledRectangle(W / 2.0, H / 2.0, W / 2.0, H / 2.0);
 
-        long elapsed  = System.currentTimeMillis() - deathTimeMs;
+        long elapsed = System.currentTimeMillis() - deathTimeMs;
         long secsLeft = Math.max(0, (DEATH_PAUSE_MS - elapsed + 999) / 1000);
 
         double cx = W / 2.0;
         double cy = H / 2.0;
 
-        // ── "DESTROYED" title ─────────────────────────────────────────────────
         int titleSize = Math.max(14, H / 8);
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, titleSize));
         StdDraw.setPenColor(new java.awt.Color(80, 0, 0, 200));
@@ -289,12 +230,10 @@ public class Submarine extends Character {
         StdDraw.text(cx, cy + H * 0.22, "SUBMARINE DESTROYED");
 
         if (!respawnReady) {
-            // ── Countdown ─────────────────────────────────────────────────────
             StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, Math.max(10, H / 14)));
             StdDraw.setPenColor(new java.awt.Color(180, 180, 180));
             StdDraw.text(cx, cy + H * 0.08, "Respawning in " + secsLeft + "...");
 
-            // Progress bar
             double barW = W * 0.28, barH = H * 0.025;
             double barCY = cy + H * 0.02;
             double progress = Math.min(1.0, (double) elapsed / DEATH_PAUSE_MS);
@@ -305,27 +244,20 @@ public class Submarine extends Character {
             StdDraw.filledRectangle(cx - barW / 2 + fillW / 2, barCY, fillW / 2, barH / 2);
 
         } else {
-            // ── Respawn button ────────────────────────────────────────────────
             double btnCX = cx, btnCY = cy + H * 0.07;
-            double btnW  = W * 0.14, btnH = H * 0.055;
+            double btnW = W * 0.14, btnH = H * 0.055;
 
             double mx = StdDraw.mouseX(), my = StdDraw.mouseY();
             boolean hover = Math.abs(mx - btnCX) < btnW && Math.abs(my - btnCY) < btnH;
 
-            // Shadow
             StdDraw.setPenColor(new java.awt.Color(0, 0, 0, 120));
             StdDraw.filledRectangle(btnCX + 2, btnCY - 2, btnW, btnH);
-
-            // Body
             StdDraw.setPenColor(hover ? new java.awt.Color(220, 80, 80) : new java.awt.Color(160, 40, 40));
             StdDraw.filledRectangle(btnCX, btnCY, btnW, btnH);
-
-            // Border
             StdDraw.setPenColor(new java.awt.Color(255, 120, 120));
             StdDraw.setPenRadius(0.002);
             StdDraw.rectangle(btnCX, btnCY, btnW, btnH);
 
-            // Label
             StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, Math.max(10, H / 18)));
             StdDraw.setPenColor(java.awt.Color.WHITE);
             StdDraw.text(btnCX, btnCY, "[ RESPAWN ]");
@@ -336,20 +268,16 @@ public class Submarine extends Character {
         }
     }
 
-    // ── Serialization ──────────────────────────────────────────────────────────
-
     @Override
     public String serialize() {
         return String.format("SUBMARINE %s %.2f %.2f %.2f %.2f %.2f %d %d",
                 id, x, y, vx, vy, angle, health, maxHealth);
     }
 
-    // ── Getters ────────────────────────────────────────────────────────────────
-
-    public int     getHealth()     { return health; }
-    public int     getMaxHealth()  { return maxHealth; }
-    public boolean isAlive()       { return alive; }
-    public float   getRudderAngle(){ return rudderAngle; }
+    public int getHealth() { return health; }
+    public int getMaxHealth() { return maxHealth; }
+    public boolean isAlive() { return alive; }
+    public float getRudderAngle() { return rudderAngle; }
 
     @Override public String getType() { return "SUBMARINE"; }
 

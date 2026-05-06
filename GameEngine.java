@@ -1,40 +1,33 @@
 import java.io.*;
 import java.util.*;
 
-/**
- * GameEngine manages the sprite world, file I/O, and camera.
- * Deliberately free of any StdDraw / rendering calls —
- * each Sprite subclass renders itself via draw(engine).
- *
- * All terrain sprites are {@link Rock} instances; the old Polygon class
- * has been consolidated into Rock.
- */
+// Manages the sprite world, file I/O, and camera.
+// Each Sprite subclass renders itself via draw(engine).
 public class GameEngine {
 
     private final List<Sprite> sprites;
     private final List<Sprite> seafloorPoints; // never saved, always rendered/clickable
-    private final String       dataFile;
+    private final String dataFile;
 
     private float cameraX;
     private float cameraY;
 
-    // ── Construction ───────────────────────────────────────────────────────────
+    // ── Construction ─────────────────────────────────────────────────────────────
 
     public GameEngine(String dataFile) {
-        this.sprites        = new ArrayList<>();
+        this.sprites = new ArrayList<>();
         this.seafloorPoints = new ArrayList<>();
-        this.dataFile       = dataFile;
-        this.cameraX        = 0;
-        this.cameraY        = 0;
+        this.dataFile = dataFile;
+        this.cameraX = 0;
+        this.cameraY = 0;
         loadSprites();
     }
 
-    /** Add a seafloor handle — included in getSprites() but never written to disk. */
     public void addSeafloorPoint(Sprite s) {
         seafloorPoints.add(s);
     }
 
-    // ── Sprite I/O ─────────────────────────────────────────────────────────────
+    // ── Sprite I/O ───────────────────────────────────────────────────────────────
 
     public void loadSprites() {
         sprites.clear();
@@ -58,18 +51,18 @@ public class GameEngine {
         String[] parts = line.trim().split("\\s+");
         if (parts.length == 0) return null;
         switch (parts[0]) {
-            // "POLYGON" and "ROCK" kept for backwards-compatibility with old save files
+            // "POLYGON" and "IMAGEROCK" kept for backwards-compatibility with old save files
             case "POLYGON":
             case "ROCK":
             case "IMAGEROCK": return Rock.deserialize(line);
-            default:          return null;
+            default: return null;
         }
     }
 
     public void saveSprites() {
         try (PrintWriter writer = new PrintWriter(new FileWriter(dataFile))) {
             writer.println("# Submarine Game — Sprite Data");
-            writer.println("# Format: ROCK depth vertexCount x1 y1 ... r g b");
+            writer.println("# Format: ROCK x y depth vertexCount x1 y1 ...");
             for (Sprite s : sprites) writer.println(s.serialize());
             System.out.println("Saved " + sprites.size() + " sprites to " + dataFile);
         } catch (IOException e) {
@@ -77,7 +70,7 @@ public class GameEngine {
         }
     }
 
-    // ── Sprite management ──────────────────────────────────────────────────────
+    // ── Sprite management ────────────────────────────────────────────────────────
 
     public Rock createRock(float x, float y, int depth) {
         return new Rock(x, y, depth);
@@ -101,7 +94,7 @@ public class GameEngine {
     }
 
     public Sprite getSpriteAt(float worldX, float worldY) {
-        // Check seafloor points first (small targets, prioritise them)
+        // check seafloor points first (small targets, prioritise them)
         for (int i = seafloorPoints.size() - 1; i >= 0; i--)
             if (seafloorPoints.get(i).contains(worldX, worldY)) return seafloorPoints.get(i);
         for (int i = sprites.size() - 1; i >= 0; i--)
@@ -115,17 +108,17 @@ public class GameEngine {
         System.out.println("Cleared all sprites.");
     }
 
-    /** All sprites + seafloor handles — used for rendering and hit-testing. */
+    // all sprites + seafloor handles — used for rendering and hit-testing
     public List<Sprite> getSprites() {
         List<Sprite> all = new ArrayList<>(sprites);
         all.addAll(seafloorPoints);
         return all;
     }
 
-    /** Only the saved rock sprites — used internally for serialization. */
+    // only the saved rock sprites — used for serialization
     public List<Sprite> getRocks() { return sprites; }
 
-    // ── Camera ─────────────────────────────────────────────────────────────────
+    // ── Camera ───────────────────────────────────────────────────────────────────
 
     public void panCamera(float dx, float dy) {
         cameraX += dx;
@@ -140,10 +133,10 @@ public class GameEngine {
     public float getCameraX() { return cameraX; }
     public float getCameraY() { return cameraY; }
 
-    // ── Coordinate conversions ─────────────────────────────────────────────────
+    // ── Coordinate conversions ───────────────────────────────────────────────────
 
-    public float  screenToWorldX(double sx) { return (float) sx + cameraX; }
-    public float  screenToWorldY(double sy) { return (float) sy + cameraY; }
-    public double worldToScreenX(float  wx) { return wx - cameraX; }
-    public double worldToScreenY(float  wy) { return wy - cameraY; }
+    public float screenToWorldX(double sx) { return (float) sx + cameraX; }
+    public float screenToWorldY(double sy) { return (float) sy + cameraY; }
+    public double worldToScreenX(float wx) { return wx - cameraX; }
+    public double worldToScreenY(float wy) { return wy - cameraY; }
 }

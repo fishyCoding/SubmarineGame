@@ -6,56 +6,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * NetworkClient — connects to NetworkServer and syncs game state.
- *
- * Thread safety: Kryonet callbacks run on a background thread.
- * All shared state (remoteSubs, pendingSounds, pendingPings) uses
- * ConcurrentHashMap / synchronized lists so the game loop can read
- * them safely from the main thread.
- *
- * Usage in Game.java:
- *
- *   // Setup
- *   NetworkClient net = new NetworkClient("localhost", "MyName");
- *   net.connect();
- *
- *   // Each tick (every 6 ticks for position)
- *   if (tick % 6 == 0) net.sendState(player);
- *
- *   // Send sound events when they happen
- *   net.sendSoundEvent(wx, wy, strength, "radar");
- *   net.sendRadarPing(player.getX(), player.getY());
- *
- *   // Each frame — drain pending events into game
- *   net.drainSounds(sounds);   // adds remote sounds to your local list
- *   net.drainPings(pingList);  // adds remote pings to your ping list
- *
- *   // Render remote submarines
- *   for (Submarine s : net.getRemoteSubs().values()) s.draw(engine);
- */
+// Connects to NetworkServer and syncs game state.
+// Kryonet callbacks run on a background thread — shared state uses
+// ConcurrentHashMap / synchronized lists so the game loop can read safely.
 public class NetworkClient {
 
     private final Client client;
 
     public final String host;
-
     private final String requestedName;
 
-    // Assigned by server on join
+    // assigned by server on join
     private volatile String myId = null;
 
-    // Remote submarines keyed by player ID — read by main thread, written by network thread
+    // remote submarines keyed by player ID
     private final Map<String, Submarine> remoteSubs = new ConcurrentHashMap<>();
 
-    // Remote torpedo positions — keyed by player ID, null entry = torpedo gone
+    // remote torpedo positions — null entry means torpedo is gone
     private final Map<String, Packets.TorpedoState> remoteTorpedoStates = new ConcurrentHashMap<>();
 
-    // Pending detonations to apply this frame
     private final List<Packets.TorpedoDetonate> pendingDetonations =
             java.util.Collections.synchronizedList(new java.util.ArrayList<>());
-
-    // Pending sound/ping events — drained into the game's sound list each frame
     private final List<Packets.SoundEvent> pendingSounds =
             java.util.Collections.synchronizedList(new java.util.ArrayList<>());
     private final List<Packets.RadarPing> pendingPings =
@@ -63,32 +34,20 @@ public class NetworkClient {
 
     private volatile boolean connected = false;
 
-    // ── Constructor ───────────────────────────────────────────────────────────
-
-    /**
-     * @param host          IP or hostname of the server (e.g. "localhost" or "192.168.1.5")
-     * @param requestedName display name to request (server may assign a different one)
-     */
     public NetworkClient(String host, String requestedName) {
-        this.host          = host;
+        this.host = host;
         this.requestedName = requestedName;
         client = new Client(65536, 65536);
         NetworkServer.registerClasses(client.getKryo());
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    // ── Lifecycle ────────────────────────────────────────────────────────────────
 
-    /**
-     * Connect to the server and send a JoinRequest.
-     * Blocks until connected or throws IOException on failure.
-     */
     public void connect() throws IOException {
         client.start();
         client.addListener(new ClientListener());
-        // 5 second timeout for the TCP connection
         client.connect(5000, host, NetworkServer.TCP_PORT, NetworkServer.UDP_PORT);
 
-        // Send join request
         Packets.JoinRequest req = new Packets.JoinRequest();
         req.playerId = requestedName;
         client.sendTCP(req);
@@ -103,98 +62,77 @@ public class NetworkClient {
     }
 
     public boolean isConnected() { return connected; }
-    public String  getMyId()     { return myId; }
+    public String getMyId() { return myId; }
 
-    // ── Sending ───────────────────────────────────────────────────────────────
+    // ── Sending ──────────────────────────────────────────────────────────────────
 
-    /**
-     * Send local player's submarine state via UDP.
-     * Call every 6 ticks — cheap, unreliable, that's fine for position.
-     */
+    // Send local player state via UDP. Call every few ticks.
     public void sendState(Submarine player) {
         if (!connected || myId == null) return;
 
         Packets.SubmarineState state = new Packets.SubmarineState();
-        state.playerId   = myId;
-        state.x          = player.getX();
-        state.y          = player.getY();
-        state.vx         = player.getVx();
-        state.vy         = player.getVy();
-        state.angle      = player.getAngle();
-        state.rudderAngle= player.getRudderAngle();
-        state.health     = player.getHealth();
+        state.playerId = myId;
+        state.x = player.getX();
+        state.y = player.getY();
+        state.vx = player.getVx();
+        state.vy = player.getVy();
+        state.angle = player.getAngle();
+        state.rudderAngle = player.getRudderAngle();
+        state.health = player.getHealth();
         client.sendUDP(state);
     }
 
-    /**
-     * Notify other players of a sound event via TCP (reliable).
-     * @param type "radar", "engine", "test", etc.
-     */
+    // type: "radar", "engine", etc.
     public void sendSoundEvent(float x, float y, float strength, String type) {
         if (!connected || myId == null) return;
 
         Packets.SoundEvent ev = new Packets.SoundEvent();
         ev.playerId = myId;
-        ev.x        = x;
-        ev.y        = y;
+        ev.x = x;
+        ev.y = y;
         ev.strength = strength;
-        ev.type     = type;
+        ev.type = type;
         client.sendTCP(ev);
     }
 
-    /**
-     * Notify other players of a radar ping via TCP.
-     * Other clients will start their own visual ping animation.
-     */
     public void sendRadarPing(float x, float y) {
         if (!connected || myId == null) return;
 
         Packets.RadarPing ping = new Packets.RadarPing();
         ping.playerId = myId;
-        ping.x        = x;
-        ping.y        = y;
+        ping.x = x;
+        ping.y = y;
         client.sendTCP(ping);
     }
 
-    /**
-     * Broadcast torpedo position via UDP every tick while in flight.
-     * Set alive=false on the last send (after explode()) so others remove it.
-     */
+    // set alive=false on last send (after explode()) so others remove it
     public void sendTorpedoState(float x, float y, float angle, boolean alive) {
         if (!connected || myId == null) return;
 
         Packets.TorpedoState t = new Packets.TorpedoState();
         t.playerId = myId;
-        t.x        = x;
-        t.y        = y;
-        t.angle    = angle;
-        t.alive    = alive;
+        t.x = x;
+        t.y = y;
+        t.angle = angle;
+        t.alive = alive;
         client.sendUDP(t);
     }
 
-    /**
-     * Broadcast torpedo detonation via TCP (reliable).
-     * Other clients will check if they're in blast radius and take damage.
-     */
     public void sendTorpedoDetonate(float x, float y, float blastRadius, int damage) {
         if (!connected || myId == null) return;
 
         Packets.TorpedoDetonate d = new Packets.TorpedoDetonate();
-        d.playerId   = myId;
-        d.x          = x;
-        d.y          = y;
+        d.playerId = myId;
+        d.x = x;
+        d.y = y;
         d.blastRadius = blastRadius;
-        d.damage     = damage;
+        d.damage = damage;
         client.sendTCP(d);
     }
 
-    // ── Draining pending events into the game ─────────────────────────────────
+    // ── Draining pending events into the game ────────────────────────────────────
 
-    /**
-     * Call once per frame from the game loop.
-     * Converts pending SoundEvents into real Sound objects and adds them to
-     * the game's sound list so the passive sonar reacts to remote players.
-     */
+    // Call once per frame. Converts pending SoundEvents into Sound objects.
     public void drainSounds(List<Sound> sounds) {
         synchronized (pendingSounds) {
             for (Packets.SoundEvent ev : pendingSounds) {
@@ -205,10 +143,7 @@ public class NetworkClient {
         }
     }
 
-    /**
-     * Call once per frame. Returns all pending radar pings from other players
-     * and clears the queue. The game loop should start ping animations for these.
-     */
+    // Call once per frame. Returns pending radar pings from other players.
     public List<Packets.RadarPing> drainPings() {
         synchronized (pendingPings) {
             List<Packets.RadarPing> copy = new java.util.ArrayList<>(pendingPings);
@@ -217,33 +152,26 @@ public class NetworkClient {
         }
     }
 
-    /** Build the right Sound subclass from a SoundEvent packet. */
     private Sound buildSound(Packets.SoundEvent ev) {
         switch (ev.type) {
             case "radar":
                 return new RadarSound(ev.x, ev.y, ev.strength, ev.playerId);
             default:
-                // Generic one-shot sound for test/unknown types
                 return new Sound(ev.x, ev.y, ev.strength, ev.playerId) {};
         }
     }
 
-    // ── Remote submarine access ───────────────────────────────────────────────
+    // ── Remote submarine access ──────────────────────────────────────────────────
 
-    /** Get a live view of all remote submarines (read-only from game loop). */
     public Map<String, Submarine> getRemoteSubs() {
         return remoteSubs;
     }
 
-    /** Get a live view of remote torpedo states (read-only from game loop). */
     public Map<String, Packets.TorpedoState> getRemoteTorpedoStates() {
         return remoteTorpedoStates;
     }
 
-    /**
-     * Call once per frame. Returns all pending detonation packets and clears
-     * the queue. Game loop should check player distance and apply damage.
-     */
+    // Call once per frame. Returns pending detonation packets.
     public List<Packets.TorpedoDetonate> drainDetonations() {
         synchronized (pendingDetonations) {
             List<Packets.TorpedoDetonate> copy = new java.util.ArrayList<>(pendingDetonations);
@@ -252,7 +180,7 @@ public class NetworkClient {
         }
     }
 
-    // ── Listener (runs on Kryonet background thread) ──────────────────────────
+    // ── Listener (runs on Kryonet background thread) ─────────────────────────────
 
     private class ClientListener extends Listener {
 
@@ -265,16 +193,13 @@ public class NetworkClient {
         @Override
         public void received(Connection conn, Object object) {
 
-            // ── Server confirmed our join ─────────────────────────────────────
             if (object instanceof Packets.JoinResponse) {
                 Packets.JoinResponse resp = (Packets.JoinResponse) object;
                 myId = resp.assignedId;
-                System.out.println("Joined as: " + myId
-                        + " spawn=(" + resp.spawnX + "," + resp.spawnY + ")");
+                System.out.println("Joined as: " + myId + " spawn=(" + resp.spawnX + "," + resp.spawnY + ")");
                 return;
             }
 
-            // ── Another player left ───────────────────────────────────────────
             if (object instanceof Packets.PlayerLeft) {
                 Packets.PlayerLeft left = (Packets.PlayerLeft) object;
                 remoteSubs.remove(left.playerId);
@@ -282,38 +207,32 @@ public class NetworkClient {
                 return;
             }
 
-            // ── Remote submarine position update ──────────────────────────────
             if (object instanceof Packets.SubmarineState) {
                 Packets.SubmarineState state = (Packets.SubmarineState) object;
                 if (state.playerId == null) return;
 
-                // Get or create a Submarine shell for this remote player.
-                // Remote subs never call handleInput() or update() physics —
-                // we just slam their position/angle from the packet.
+                // get or create a Submarine shell for this remote player
+                // remote subs never run physics — we slam position/angle from the packet
                 Submarine sub = remoteSubs.computeIfAbsent(
                         state.playerId,
                         id -> new Submarine(id, state.x, state.y, state.health, null));
 
-                // Overwrite position/velocity directly — no physics simulation
                 sub.setPosition(state.x, state.y);
                 sub.setVelocity(state.vx, state.vy);
                 sub.setAngle(state.angle);
                 return;
             }
 
-            // ── Remote sound event ────────────────────────────────────────────
             if (object instanceof Packets.SoundEvent) {
                 pendingSounds.add((Packets.SoundEvent) object);
                 return;
             }
 
-            // ── Remote radar ping ─────────────────────────────────────────────
             if (object instanceof Packets.RadarPing) {
                 pendingPings.add((Packets.RadarPing) object);
                 return;
             }
 
-            // ── Remote torpedo position ───────────────────────────────────────
             if (object instanceof Packets.TorpedoState) {
                 Packets.TorpedoState t = (Packets.TorpedoState) object;
                 if (t.playerId == null) return;
@@ -325,7 +244,6 @@ public class NetworkClient {
                 return;
             }
 
-            // ── Remote torpedo detonation ─────────────────────────────────────
             if (object instanceof Packets.TorpedoDetonate) {
                 pendingDetonations.add((Packets.TorpedoDetonate) object);
             }
