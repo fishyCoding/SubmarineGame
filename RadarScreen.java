@@ -25,7 +25,7 @@ public class RadarScreen {
 
 
     // World range represented by the full radar radius
-    private static final float WORLD_RADIUS = 5000f;
+    private static final float WORLD_RADIUS = 3000f;
 
     private static final Color COL_BG        = Color.decode("#030E06");
 
@@ -60,6 +60,8 @@ public class RadarScreen {
         double cx = screenW - MARGIN - RADIUS;
         double cy = screenH - MARGIN - RADIUS;
 
+
+
         // ── Background circle ──────────────────────────────────────────────────
         StdDraw.setPenColor(COL_BG);
         StdDraw.filledCircle(cx, cy, RADIUS);
@@ -72,6 +74,8 @@ public class RadarScreen {
         // Crosshair
         StdDraw.line(cx - RADIUS, cy, cx + RADIUS, cy);
         StdDraw.line(cx, cy - RADIUS, cx, cy + RADIUS);
+        //Draw player point in the middle of the radar
+
 
         // ── Border ─────────────────────────────────────────────────────────────
         StdDraw.setPenColor(COL_BORDER);
@@ -115,6 +119,8 @@ public class RadarScreen {
             }
             StdDraw.setPenRadius(0.002);
         }
+        StdDraw.setPenColor(new Color(0, 255, 0));
+        StdDraw.filledCircle(cx, cy, 1.5);
 
 
         // ── Contacts — only shown/faded when a ping is active ─────────────────
@@ -243,9 +249,8 @@ public class RadarScreen {
             if (count < 2) continue;
 
             // Foreground rocks slightly brighter than background ones
-            Color col = (rock.getDepth() == 1)
-                    ? new Color(0, 80, 30)   // dim green — foreground
-                    : new Color(0, 45, 18);  // darker  — background
+            if(rock.getDepth() == 1){
+            Color col = Color.decode("#8b8b8b");
 
             StdDraw.setPenColor(col);
 
@@ -271,6 +276,7 @@ public class RadarScreen {
                 drawClippedSegment(cx, cy, rax, ray, rbx, rby, RADIUS - 1.0);
             }
         }
+        }
         StdDraw.setPenRadius(0.002);
     }
 
@@ -282,7 +288,8 @@ public class RadarScreen {
     private static void drawSeafloorMinimap(BottomRockLayer floor,
                                             float playerX, float playerY,
                                             double cx, double cy, double scale) {
-        StdDraw.setPenColor(new Color(40, 70, 30));   // dim olive — distinct from rocks
+
+        StdDraw.setPenColor(Color.decode("#8b8b8b"));   // dim olive — distinct from rocks
         StdDraw.setPenRadius(0.0015);
 
         int n = BottomRockLayer.NUM_POINTS;
