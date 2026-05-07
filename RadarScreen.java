@@ -37,7 +37,7 @@ public class RadarScreen {
     private static final Color COL_LABEL     = Color.decode("#00c83c");
     private static final Color COL_TITLE     = Color.decode("#00B446");
 
-    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer) {
+    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions) {
         //center x and y var of the panel
         double cx = screenW - MARGIN - RADIUS;
         double cy = screenH - MARGIN - RADIUS;
@@ -201,6 +201,45 @@ public class RadarScreen {
             StdDraw.setPenRadius(0.001);
             StdDraw.polygon(trx, try_);
             StdDraw.setPenRadius(0.002);
+        }
+
+        // ── Remote torpedo blips — red triangles, only shown during a ping ──────
+        if (pingAlpha > 0f && remoteTorpedoPositions != null) {
+            for (float[] rtp : remoteTorpedoPositions) {
+                float tdx = rtp[0] - playerX;
+                float tdy = rtp[1] - playerY;
+                double scale = (double) RADIUS / WORLD_RADIUS;
+                double sdx = tdx * scale;
+                double sdy = tdy * scale;
+                double dist = Math.sqrt(sdx * sdx + sdy * sdy);
+                if (dist > RADIUS - 4) {
+                    double norm = (RADIUS - 4) / dist;
+                    sdx *= norm;
+                    sdy *= norm;
+                }
+                double tx = cx + sdx;
+                double ty = cy + sdy;
+
+                double ang = Math.atan2(sdy, sdx);
+                double size = 1.0;
+                double[] trx = {
+                    tx + Math.cos(ang)       * size * 2,
+                    tx + Math.cos(ang + 2.4) * size,
+                    tx + Math.cos(ang - 2.4) * size
+                };
+                double[] try_ = {
+                    ty + Math.sin(ang)       * size * 2,
+                    ty + Math.sin(ang + 2.4) * size,
+                    ty + Math.sin(ang - 2.4) * size
+                };
+                int torpA = Math.min(255, (int)(pingAlpha * 255));
+                StdDraw.setPenColor(new Color(255, 40, 40, torpA));
+                StdDraw.filledPolygon(trx, try_);
+                StdDraw.setPenColor(new Color(180, 0, 0, torpA));
+                StdDraw.setPenRadius(0.001);
+                StdDraw.polygon(trx, try_);
+                StdDraw.setPenRadius(0.002);
+            }
         }
 
         // ── Title label above panel ────────────────────────────────────────────

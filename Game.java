@@ -456,8 +456,16 @@ public class Game {
         float[] torpedoPos = torpedoSystem.hasTorpedo()
                 ? new float[]{torpedoSystem.getTorpedo().getX(), torpedoSystem.getTorpedo().getY()}
                 : null;
+
+        // snapshot remote torpedo positions for radar — only populated during an active ping
+        List<float[]> remoteTorpedoPositions = new ArrayList<>();
+        if (pingAlpha > 0f && multiplayer && netClient != null) {
+            for (Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values())
+                remoteTorpedoPositions.add(new float[]{t.x, t.y});
+        }
+
         RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(),
-                pingAlpha, radarContacts, foregroundRocks, torpedoPos, bottomLayer);
+                pingAlpha, radarContacts, foregroundRocks, torpedoPos, bottomLayer, remoteTorpedoPositions);
 
         // ── Contact list UI ────────────────────────────────────────────────────
         drawContactUI();
