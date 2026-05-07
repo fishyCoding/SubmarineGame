@@ -5,20 +5,20 @@ public class Submarine extends Character {
     private boolean alive;
     private float rudderAngle = 0f;
 
-    // death / respawn state
+    // player state vars
     private boolean dead = false;
     private long deathTimeMs = 0L;
     private static final long DEATH_PAUSE_MS = 5000L;
     private boolean respawnReady = false;
 
-    // physics constants
+    // physics consts
     private static final float THRUST_ACCEL = 0.35f;
     private static final float VERTICAL_ACCEL = 0.30f;
     private static final float DRAG = 0.04f;
     private static final float VERTICAL_DRAG = 0.06f;
     private static final float MAX_SPEED = 7f;
 
-    // rudder constants
+    // rudder consts
     private static final float RUDDER_RATE = 0.5f;
     private static final float RUDDER_RETURN = 1.5f;
     private static final float RUDDER_MAX = 30f;

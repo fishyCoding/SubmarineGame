@@ -1,17 +1,20 @@
 import java.awt.Color;
 
-// Fired by the player, steered by mouse, detonated on second click.
-// Lifecycle: created at player pos → update() each tick → explode() on click or collision → isAlive() == false
+// Lifecycle: 
+// created at player pos
+//  update() each tick with steering from mouse
+// explode() on click or collision
 public class Torpedo extends Character {
 
+    //physcs consts
     private static final float MAXSPEED = 13f;
     private static final float ACCELERATION = 1.5f;
     private static final float TURN_RATE = 3.5f;
     private static final float BLAST_RADIUS = 250f;
     private static final int DAMAGE = 100;
-
-    private float speed = 3f; // instance field — was incorrectly static before
-
+    
+    //torpedo state vars
+    private float speed = 3f;
     private boolean alive = true;
     private boolean exploded = false;
 
