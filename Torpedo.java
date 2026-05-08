@@ -10,8 +10,8 @@ public class Torpedo extends Character {
     private static final float MAXSPEED = 13f;
     private static final float ACCELERATION = 1.5f;
     private static final float TURN_RATE = 3.5f;
-    private static final float KILL_BLAST_RADIUS = 75f;
-    private static final float BLAST_RADIUS = 250f;
+    private static final float KILL_BLAST_RADIUS = 150f;
+    private static final float BLAST_RADIUS = 350f;
     private static final int DAMAGE = 100;
 
     public static int getDamage(float dist){
