@@ -1,5 +1,3 @@
-// All network message POJOs.
-// Kryonet rules: public static classes, public no-arg constructor, public fields.
 public class Packets {
 
     // sent by client on connect
@@ -9,7 +7,7 @@ public class Packets {
 
     // server confirms join and assigns a session ID
     public static class JoinResponse {
-        public String assignedId; // e.g. "player_3"
+        public String assignedId; // ie "player_3"
         public float spawnX;
         public float spawnY;
     }
@@ -19,6 +17,8 @@ public class Packets {
         public String playerId;
     }
 
+
+    //packet classes for every type of data that gets sent
     public static class SubmarineState {
         public String playerId;
         public float x;
@@ -35,7 +35,7 @@ public class Packets {
         public float x;
         public float y;
         public float strength;
-        public String type; // "radar", "engine", "background"
+        public String type; // ie radar background
     }
 
     public static class RadarPing {

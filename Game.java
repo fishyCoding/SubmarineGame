@@ -2,23 +2,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Game — the playable runtime for the submarine game.
- *
- * Multiplayer additions:
- *   - Pass --host to run as server+client (host mode)
- *   - Pass --join <ip> to connect to a host
- *   - Pass --solo for offline play (default)
- *
- *   java Game --solo
- *   java Game --host
- *   java Game --join 192.168.1.5
- */
 public class Game {
 
     // Canvas
-    private static final int WIDTH = 650;
-    private static final int HEIGHT = 400;
+    private static final int WIDTH = 1300;
+    private static final int HEIGHT = 800;
     private static final double CX = WIDTH /2.0;
     private static final double CY = HEIGHT /2.0;
 
@@ -37,22 +25,16 @@ public class Game {
     private static final int    PLAYER_MAX_HP = 100;
 
     //Radar Ping
-    private static final long   PING_DURATION_MS = 2500;
-    private static long         pingStartMs      = -1;
-    private static boolean      rWasDown         = false;
-    private static final float  PING_SOUND_STRENGTH = 10000f;
+    private static final long PING_DURATION_MS = 2500;
+    private static long pingStartMs      = -1;
+    private static final float PING_SOUND_STRENGTH = 10000f;
 
-    // ── Radar screen (top-right corner) ───────────────────────────────────────
-    // Stores (playerId, worldX, worldY, pingAlphaAtDetection) for each contact
-    // detected during the last radar ping. Fades out over PING_DURATION_MS.
-    private static final java.util.Map<String, float[]> radarContacts =
-            new java.util.concurrent.ConcurrentHashMap<>();
-    // [0]=worldX [1]=worldY [2]=alpha (we recompute from pingAlpha each frame)
+    //players the radar has detected
+    private static final java.util.Map<String, float[]> radarContacts =new java.util.concurrent.ConcurrentHashMap<>();
 
 
 
     // System classes
-
     private static GameEngine engine;
     private static BottomRockLayer bottomLayer;
     private static Water water;
@@ -62,7 +44,7 @@ public class Game {
     private static final List<Sound> sounds = new ArrayList<>();
     private static EngineSound engineSound; //gets attached to sub
 
-    // ── Torpedo system ─────────────────────────────────────────────────────────
+    // Torpedo mechs
     private static TorpedoSystem torpedoSystem;
     private static final List<String> contactIds = new ArrayList<>();
     private static final Map<String, float[]> contactPos = new java.util.LinkedHashMap<>();
@@ -77,6 +59,7 @@ public class Game {
     //tick counter
     private static long tick = 0;
     private static boolean mouseWasDown = false;
+    private static boolean rWasDown = false;
 
 
     public static void main(String[] args) {
@@ -87,7 +70,6 @@ public class Game {
         setupWindow();
         setupSounds();
         torpedoSystem = new TorpedoSystem();
-        printControls();
         gameLoop();
     }
 
@@ -160,30 +142,47 @@ public class Game {
 
 
     private static void setupWorld() {
-
         //engine handles sprites collision and rendering 
         engine = new GameEngine(DATA_FILE);
+        //bottom rock layer
         bottomLayer = new BottomRockLayer(-WIDTH, WIDTH * 4, SEAFLOOR_TOP, SEAFLOOR_BASE, SEAFLOOR_FILE);
+        //bckground water render
         water = new Water(HEIGHT, WIDTH, SURFACE_LEVEL, engine);
     }
 
     private static void spawnPlayer() {
-        player = new Submarine("Player", Spawner.getSpawnX(), Spawner.getSpawnY(), PLAYER_MAX_HP, null);
+        //Spawner.getSpawnX/Y is its own function. the class stores the mechs for finding the random spawn
+        player = new Submarine("Player", Spawner.getSpawnX(), Spawner.getSpawnY(), PLAYER_MAX_HP);
         System.out.println("Spawned: " + player);
     }
 
     private static void setupSounds() {
+        //attach engine sound to player
         engineSound = new EngineSound(player);
         sounds.add(engineSound);
+        //bckground noise
         sounds.add(new BackgroundSound(player));
     }
 
-    // ── Game loop ──────────────────────────────────────────────────────────────
-
     private static void gameLoop() {
         while (true) {
+            
             handleInput();
             updateSounds();
+            drainNetwork();
+            player.update();
+            checkCollisions();
+            lockCamera();
+            render();
+
+
+            StdDraw.show();
+            StdDraw.pause(16);
+            tick++;
+        }
+    }
+
+    private static void drainNetwork(){
 
             if (multiplayer && netClient != null && netClient.isConnected()) {
                 if (tick % 12 == 0) netClient.sendState(player);
@@ -214,8 +213,10 @@ public class Game {
                     float dx = player.getX() - d.x;
                     float dy = player.getY() - d.y;
                     if (dx * dx + dy * dy <= d.blastRadius * d.blastRadius) {
-                        player.takeDamage(d.damage);
-                        System.out.println("Hit by remote torpedo from " + d.playerId + "!");
+                        int currentDamage=Torpedo.getDamage((float) Math.sqrt(dx * dx + dy * dy));
+                        System.out.println(currentDamage);
+                        player.takeDamage(currentDamage);
+                        System.out.println("Hit by remote torpedo from " + (float) Math.sqrt(dx * dx + dy * dy) + "!");
                     }
                     // Remove the visual torpedo for that player
                 }
@@ -227,11 +228,7 @@ public class Game {
                     System.out.println("Remote ping from " + ping.playerId);
                 }
             }
-
-            player.update();
-
-            // ── Torpedo update ─────────────────────────────────────────────────
-            if (torpedoSystem.hasTorpedo()) {
+                        if (torpedoSystem.hasTorpedo()) {
                 List<Rock> fgRocks = new ArrayList<>();
                 for (Sprite s : engine.getSprites())
                     if (s instanceof Rock && ((Rock) s).getDepth() == 1)
@@ -245,16 +242,6 @@ public class Game {
                         StdDraw.mouseX(), StdDraw.mouseY(), CX, CY,
                         fgRocks, bottomLayer, remotes, player);
             }
-
-            // ── Rock collision ─────────────────────────────────────────────────
-            checkCollisions();
-
-            lockCamera();
-            render();
-            StdDraw.show();
-            StdDraw.pause(16);
-            tick++;
-        }
     }
 
     // ── Collision detection ────────────────────────────────────────────────────
@@ -402,12 +389,12 @@ public class Game {
     private static void render() {
         water.drawWaterGradient();
 
-        // Background rocks
+        // Bckground rocks
         for (Sprite s : engine.getSprites())
             if (s instanceof Rock && ((Rock) s).getDepth() == 0)
                 s.draw(engine);
 
-        // Foreground rocks
+        // Frground rocks
         for (Sprite s : engine.getSprites())
             if (s instanceof Rock && ((Rock) s).getDepth() == 1)
                 s.draw(engine);
@@ -415,6 +402,7 @@ public class Game {
         bottomLayer.draw(engine);
 
         if (multiplayer && netClient != null) {
+            //Draw remote subs
             Map<String, Submarine> remotes = netClient.getRemoteSubs();
             for (Submarine remote : remotes.values()) {
                 remote.draw(engine);
@@ -426,12 +414,13 @@ public class Game {
             }
         }
 
-        // Fog of war
+        // Fog of war outlien around most of the screen
         HUD.drawFog(HEIGHT, WIDTH, CX, CY);
 
         // Radar outlines (rocks)
-        float pingAlpha = pingAlpha();
-        if (pingAlpha > 0f) drawRadarOutlines(pingAlpha);
+        if (pingAlpha() > 0f) {
+            drawRadarOutlines(pingAlpha());
+        }
 
         // Local player submarine
         player.drawCentred(CX, CY);
@@ -459,13 +448,13 @@ public class Game {
 
         // snapshot remote torpedo positions for radar — only populated during an active ping
         List<float[]> remoteTorpedoPositions = new ArrayList<>();
-        if (pingAlpha > 0f && multiplayer && netClient != null) {
+        if (pingAlpha() > 0f && multiplayer && netClient != null) {
             for (Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values())
                 remoteTorpedoPositions.add(new float[]{t.x, t.y});
         }
 
         RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(),
-                pingAlpha, radarContacts, foregroundRocks, torpedoPos, bottomLayer, remoteTorpedoPositions);
+                pingAlpha(), radarContacts, foregroundRocks, torpedoPos, bottomLayer, remoteTorpedoPositions);
 
         // ── Contact list UI ────────────────────────────────────────────────────
         drawContactUI();
@@ -547,21 +536,4 @@ public class Game {
         }
     }
 
-    // ── Misc ───────────────────────────────────────────────────────────────────
-
-    private static void printControls() {
-        System.out.println("=== Submarine Game ===");
-        System.out.println("  W/S         → thrust forward/back");
-        System.out.println("  A/D         → rudder left/right");
-        System.out.println("  Q/E         → dive/surface");
-        System.out.println("  R           → radar ping");
-        System.out.println("  Click+Hold  → spawn test sound");
-        System.out.println("  ESC         → quit");
-        System.out.println();
-        System.out.println("  Launch args:");
-        System.out.println("    --solo          offline (default)");
-        System.out.println("    --host          host a game");
-        System.out.println("    --join <ip>     join a game");
-        System.out.println();
-    }
 }

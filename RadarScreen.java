@@ -71,6 +71,12 @@ public class RadarScreen {
         // Segments that cross the circle boundary are clipped so nothing bleeds
         // outside the display.
         double radarScale = (double) RADIUS / WORLD_RADIUS;
+
+        //draw circles at 250
+        StdDraw.setPenColor(COL_GRID);
+
+        StdDraw.circle(cx,cy,radarScale*250f);
+
         drawRockMinimap(rocks, playerX, playerY, cx, cy, radarScale);
         if (bottomLayer != null)
             drawSeafloorMinimap(bottomLayer, playerX, playerY, cx, cy, radarScale);

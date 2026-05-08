@@ -215,7 +215,7 @@ public class NetworkClient {
                 // remote subs never run physics — we slam position/angle from the packet
                 Submarine sub = remoteSubs.computeIfAbsent(
                         state.playerId,
-                        id -> new Submarine(id, state.x, state.y, state.health, null));
+                        id -> new Submarine(id, state.x, state.y, state.health));
 
                 sub.setPosition(state.x, state.y);
                 sub.setVelocity(state.vx, state.vy);

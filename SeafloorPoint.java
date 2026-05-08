@@ -1,4 +1,3 @@
-import java.awt.Color;
 
 /**
  * SeafloorPoint — a draggable handle for one control point on the BottomRockLayer.
@@ -14,7 +13,7 @@ public class SeafloorPoint extends Sprite {
     private static final float HIT_RADIUS = 12f; // screen pixels for click detection
 
     public SeafloorPoint(BottomRockLayer floor, int index) {
-        super(floor.getPointWorldX(index), floor.getPointWorldY(index), Color.CYAN);
+        super(floor.getPointWorldX(index), floor.getPointWorldY(index));
         this.floor = floor;
         this.index = index;
     }

@@ -14,7 +14,7 @@ public class Rock extends Sprite {
     private static final float OUTLINE_WIDTH = 0.01f;
 
     public Rock(float x, float y, int depth) {
-        super(x, y, Color.GRAY);
+        super(x, y);
         this.vertices = new ArrayList<>();
         this.depth = Math.max(0, Math.min(1, depth));
         this.vertices.add(0f);

@@ -10,9 +10,23 @@ public class Torpedo extends Character {
     private static final float MAXSPEED = 13f;
     private static final float ACCELERATION = 1.5f;
     private static final float TURN_RATE = 3.5f;
+    private static final float KILL_BLAST_RADIUS = 75f;
     private static final float BLAST_RADIUS = 250f;
     private static final int DAMAGE = 100;
+
+    public static int getDamage(float dist){
+        if (dist>BLAST_RADIUS){
+             return 0;
+        }
+        else if (dist<KILL_BLAST_RADIUS){
+         return DAMAGE;
+        }
+        else{
+            return (int) ((BLAST_RADIUS-dist)/(BLAST_RADIUS-KILL_BLAST_RADIUS)*DAMAGE);
+        }
+    }
     
+
     //torpedo state vars
     private float speed = 3f;
     private boolean alive = true;
@@ -21,7 +35,7 @@ public class Torpedo extends Character {
     private final String ownerId;
 
     public Torpedo(String ownerId, float x, float y, float angleDeg) {
-        super("torpedo", x, y, 8f, null, 8f, 4f);
+        super("torpedo", x, y, 8f, 8f, 4f);
         this.ownerId = ownerId;
         this.angle = angleDeg;
         double rad = Math.toRadians(angleDeg);

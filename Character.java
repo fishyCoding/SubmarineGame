@@ -1,6 +1,3 @@
-import java.awt.Color;
-
-// Base class for every entity in the game world.
 // Stores position, velocity, heading, and a circular hitbox.
 public abstract class Character extends Sprite {
 
@@ -12,8 +9,8 @@ public abstract class Character extends Sprite {
     protected String id;
     protected float collisionRadius;
 
-    public Character(String id, float x, float y, float collisionRadius, String imagePath, float imageHalfW, float imageHalfH) {
-        super(x, y, Color.WHITE);
+    public Character(String id, float x, float y, float collisionRadius, float imageHalfW, float imageHalfH) {
+        super(x, y);
         this.id = id;
         this.collisionRadius = collisionRadius;
         this.vx = 0;
@@ -39,7 +36,6 @@ public abstract class Character extends Sprite {
         this.vy = vy;
     }
 
-    // ── Collision ────────────────────────────────────────────────────────────────
 
     @Override
     public boolean contains(float px, float py) {
@@ -60,13 +56,6 @@ public abstract class Character extends Sprite {
         return rock.contains(x, y);
     }
 
-    @Override
-    public void draw(GameEngine engine) {
-        double sx = engine.worldToScreenX(x);
-        double sy = engine.worldToScreenY(y);
-        StdDraw.setPenColor(color);
-        StdDraw.filledCircle(sx, sy, collisionRadius);
-    }
 
     // getters and setters
     public String getId() { return id; }

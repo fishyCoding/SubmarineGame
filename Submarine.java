@@ -27,8 +27,8 @@ public class Submarine extends Character {
     private static final float BODY_HALF_W = 30f;
     private static final float BODY_HALF_H = 12f;
 
-    public Submarine(String id, float x, float y, int maxHealth, String imagePath) {
-        super(id, x, y, 28f, imagePath, BODY_HALF_W, BODY_HALF_H);
+    public Submarine(String id, float x, float y, int maxHealth) {
+        super(id, x, y, 28f, BODY_HALF_W, BODY_HALF_H);
         this.maxHealth = maxHealth;
         this.health = maxHealth;
         this.alive = true;
