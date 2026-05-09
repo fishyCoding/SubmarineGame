@@ -37,7 +37,7 @@ public class RadarScreen {
     private static final Color COL_LABEL     = Color.decode("#00c83c");
     private static final Color COL_TITLE     = Color.decode("#00B446");
 
-    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions) {
+    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions, float[] selectedContact) {
         //center x and y var of the panel
         double cx = screenW - MARGIN - RADIUS;
         double cy = screenH - MARGIN - RADIUS;
@@ -207,6 +207,28 @@ public class RadarScreen {
             StdDraw.setPenRadius(0.001);
             StdDraw.polygon(trx, try_);
             StdDraw.setPenRadius(0.002);
+
+            // blast radius ring around the selected contact
+            if (selectedContact != null) {
+                double scale = (double) RADIUS / WORLD_RADIUS;
+                double cdx = (selectedContact[0] - playerX) * scale;
+                double cdy = (selectedContact[1] - playerY) * scale;
+                double cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+                if (cdist > RADIUS - 4) {
+                    double norm = (RADIUS - 4) / cdist;
+                    cdx *= norm;
+                    cdy *= norm;
+                }
+                double ccx = cx + cdx;
+                double ccy = cy + cdy;
+                double radarBlastRadius = 250f * scale;
+                StdDraw.setPenColor(new Color(255, 220, 0, 40));
+                StdDraw.filledCircle(ccx, ccy, radarBlastRadius);
+                StdDraw.setPenColor(new Color(255, 220, 0, 140));
+                StdDraw.setPenRadius(0.001);
+                StdDraw.circle(ccx, ccy, radarBlastRadius);
+                StdDraw.setPenRadius(0.002);
+            }
         }
 
         // ── Remote torpedo blips — red triangles, only shown during a ping ──────
