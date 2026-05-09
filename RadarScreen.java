@@ -162,15 +162,23 @@ public class RadarScreen {
             StdDraw.setPenRadius(0.002);
 
             // blast radius ring centered on torpedo, only when a contact is selected
-            if (selectedContact != null) {
-                double radarBlastRadius = BLAST_RADIUS * scale;
-                StdDraw.setPenColor(new Color(255, 220, 0, 40));
-                StdDraw.filledCircle(tx, ty, radarBlastRadius);
-                StdDraw.setPenColor(new Color(255, 220, 0, 140));
-                StdDraw.setPenRadius(0.001);
-                StdDraw.circle(tx, ty, radarBlastRadius);
-                StdDraw.setPenRadius(0.002);
-            }
+if (selectedContact != null) {
+    // distance from torpedo to selected contact in world units
+    float distToContact = (float) Math.sqrt(
+        Math.pow(selectedContact[0] - torpedoPos[0], 2) +
+        Math.pow(selectedContact[1] - torpedoPos[1], 2)
+    );
+
+    if (distToContact <= 750f) {
+        double radarDist = distToContact * scale;
+        StdDraw.setPenColor(new Color(255, 220, 0, 40));
+        StdDraw.filledCircle(tx, ty, radarDist);
+        StdDraw.setPenColor(new Color(255, 220, 0, 140));
+        StdDraw.setPenRadius(0.001);
+        StdDraw.circle(tx, ty, radarDist);
+        StdDraw.setPenRadius(0.002);
+    }
+}
         }
 
         // remote torpedo blips — red triangles, only shown during a ping
