@@ -170,6 +170,16 @@ if (selectedContact != null) {
     );
 
     if (distToContact <=1250f) {
+        if (distToContact <=BLAST_RADIUS){
+                    double radarDist = distToContact * scale;
+                    //rgb(0 255 80)
+        StdDraw.setPenColor(new Color(0, 255, 80, 40));
+        StdDraw.filledCircle(tx, ty, radarDist);
+        StdDraw.setPenColor(new Color(0, 255, 80, 140));
+        StdDraw.setPenRadius(0.001);
+        StdDraw.circle(tx, ty, radarDist);
+        StdDraw.setPenRadius(0.002);
+        }
         double radarDist = distToContact * scale;
         StdDraw.setPenColor(new Color(255, 220, 0, 40));
         StdDraw.filledCircle(tx, ty, radarDist);
