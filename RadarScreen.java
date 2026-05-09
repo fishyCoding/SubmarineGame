@@ -210,7 +210,6 @@ public class RadarScreen {
 
             // blast radius ring around the selected contact
             if (selectedContact != null) {
-                double scale = (double) RADIUS / WORLD_RADIUS;
                 double cdx = (selectedContact[0] - playerX) * scale;
                 double cdy = (selectedContact[1] - playerY) * scale;
                 double cdist = Math.sqrt(cdx * cdx + cdy * cdy);
