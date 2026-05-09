@@ -10,7 +10,7 @@ public class RadarScreen {
     private static final int SAMPLES = 36;
 
     private static final float WORLD_RADIUS = 3000f;
-    private static final float BLAST_RADIUS = 250f;
+    private static final float BLAST_RADIUS = 150f;
 
     private static final Color COL_BG = Color.decode("#030E06");
     private static final Color COL_BORDER = Color.decode("#145023");
