@@ -453,7 +453,7 @@ public class Game {
                 remoteTorpedoPositions.add(new float[]{t.x, t.y});
         }
 
-        // pass selected contact so radar can draw the blast radius ring around it
+        // pass selected contact so radar knows to draw the blast radius ring
         float[] selectedContact = (selectedIdx >= 0 && selectedIdx < contactIds.size())
                 ? contactPos.get(contactIds.get(selectedIdx))
                 : null;
