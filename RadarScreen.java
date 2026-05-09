@@ -169,7 +169,7 @@ if (selectedContact != null) {
         Math.pow(selectedContact[1] - torpedoPos[1], 2)
     );
 
-    if (distToContact <= 750f) {
+    if (distToContact <=1250f) {
         double radarDist = distToContact * scale;
         StdDraw.setPenColor(new Color(255, 220, 0, 40));
         StdDraw.filledCircle(tx, ty, radarDist);
