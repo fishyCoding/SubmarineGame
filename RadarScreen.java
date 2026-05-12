@@ -21,7 +21,7 @@ public class RadarScreen {
     private static final Color COL_LABEL = Color.decode("#00c83c");
     private static final Color COL_TITLE = Color.decode("#00B446");
 
-    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions, float[] selectedContact) {
+    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions, float[] selectedContact, float contactDist) {
         double cx = screenW - MARGIN - RADIUS;
         double cy = screenH - MARGIN - RADIUS;
 
@@ -162,35 +162,30 @@ public class RadarScreen {
             StdDraw.setPenRadius(0.002);
 
             // blast radius ring centered on torpedo, only when a contact is selected
-if (selectedContact != null) {
-    // distance from torpedo to selected contact in world units
-    float distToContact = (float) Math.sqrt(
-        Math.pow(selectedContact[0] - torpedoPos[0], 2) +
-        Math.pow(selectedContact[1] - torpedoPos[1], 2)
-    );
+            if (selectedContact != null) {
 
-    if (distToContact <=1250f) {
-        if (distToContact <=BLAST_RADIUS){
-                    double radarDist = distToContact * scale;
-                    //rgb(0 255 80)
-        StdDraw.setPenColor(new Color(0, 255, 80, 40));
-        StdDraw.filledCircle(tx, ty, radarDist);
-        StdDraw.setPenColor(new Color(0, 255, 80, 140));
-        StdDraw.setPenRadius(0.001);
-        StdDraw.circle(tx, ty, radarDist);
-        StdDraw.setPenRadius(0.002);
-        }
-        else{
-        double radarDist = distToContact * scale;
-        StdDraw.setPenColor(new Color(255, 220, 0, 40));
-        StdDraw.filledCircle(tx, ty, radarDist);
-        StdDraw.setPenColor(new Color(255, 220, 0, 140));
-        StdDraw.setPenRadius(0.001);
-        StdDraw.circle(tx, ty, radarDist);
-        StdDraw.setPenRadius(0.002);
-        }
-    }
-}
+                if (contactDist <=1250f) {
+                    if (contactDist <=BLAST_RADIUS){
+                                double radarDist = contactDist * scale;
+                                //rgb(0 255 80)
+                    StdDraw.setPenColor(new Color(0, 255, 80, 40));
+                    StdDraw.filledCircle(tx, ty, radarDist);
+                    StdDraw.setPenColor(new Color(0, 255, 80, 140));
+                    StdDraw.setPenRadius(0.001);
+                    StdDraw.circle(tx, ty, radarDist);
+                    StdDraw.setPenRadius(0.002);
+                    }
+                    else{
+                    double radarDist = contactDist * scale;
+                    StdDraw.setPenColor(new Color(255, 220, 0, 40));
+                    StdDraw.filledCircle(tx, ty, radarDist);
+                    StdDraw.setPenColor(new Color(255, 220, 0, 140));
+                    StdDraw.setPenRadius(0.001);
+                    StdDraw.circle(tx, ty, radarDist);
+                    StdDraw.setPenRadius(0.002);
+                    }
+                }
+            }
         }
 
         // remote torpedo blips — red triangles, only shown during a ping

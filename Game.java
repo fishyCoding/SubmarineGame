@@ -31,7 +31,7 @@ public class Game {
 
     //players the radar has detected
     private static final java.util.Map<String, float[]> radarContacts =new java.util.concurrent.ConcurrentHashMap<>();
-
+    private static float contactDist=0f;
 
 
     // System classes
@@ -457,12 +457,12 @@ public class Game {
         float[] selectedContact = (selectedIdx >= 0 && selectedIdx < contactIds.size())
                 ? contactPos.get(contactIds.get(selectedIdx))
                 : null;
+        drawContactUI();
 
         RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(),
-                pingAlpha(), radarContacts, foregroundRocks, torpedoPos, bottomLayer, remoteTorpedoPositions, selectedContact);
+                pingAlpha(), radarContacts, foregroundRocks, torpedoPos, bottomLayer, remoteTorpedoPositions, selectedContact,contactDist);
 
         // ── Contact list UI ────────────────────────────────────────────────────
-        drawContactUI();
 
         // ── Death screen overlay (drawn last so it's on top of everything) ─────
         if (!player.isAlive()) {
@@ -528,15 +528,15 @@ public class Game {
                 Torpedo t = torpedoSystem.getTorpedo();
                 float dx   = liveX - t.getX();
                 float dy   = liveY - t.getY();
-                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                contactDist= (float) Math.sqrt(dx * dx + dy * dy);
 
                 // Hot/cold colour
-                float ratio = Math.min(1f, dist / 2000f);
+                float ratio = Math.min(1f, contactDist / 2000f);
                 int r = (int)(255 * ratio);
                 int g = (int)(255 * (1 - ratio));
                 StdDraw.setPenColor(new java.awt.Color(r, g, 0));
                 StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 13));
-                StdDraw.textRight(rightX, below - 16, String.format("DIST: %.0f m", dist));
+                StdDraw.textRight(rightX, below - 16, String.format("DIST: %.0f m", contactDist));
             }
         }
     }

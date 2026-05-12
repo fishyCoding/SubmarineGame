@@ -43,6 +43,10 @@ public class HUD {
         StdDraw.setPenColor(0, 0, 0);
         StdDraw.textLeft(11, HEIGHT - 19, String.format("Depth: %.0f m",  depthM));
         StdDraw.textLeft(11, HEIGHT - 35, String.format("Speed: %.1f kn", player.getSpeed()));
+                StdDraw.setPenColor(255, 255, 255);
+
+        StdDraw.textLeft(11, HEIGHT - 51, String.format("Drop Cooldown: %d", player.dropCooldown));
+
 
         StdDraw.setPenColor(200, 230, 255);
         StdDraw.textLeft(10, HEIGHT - 18, String.format("Depth: %.0f m",  depthM));

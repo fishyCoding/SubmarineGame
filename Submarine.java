@@ -27,6 +27,16 @@ public class Submarine extends Character {
     private static final float BODY_HALF_W = 30f;
     private static final float BODY_HALF_H = 12f;
 
+    //inputs
+    private boolean sHeldBefore= false;
+    boolean sHeld= false;
+    private float dropPow=0;
+    private final float DROP_MAX= 200f;
+    private final float DROP_DRAG= 0.4f;
+    private final int MAX_COOLDOWN=500;
+    int dropCooldown=0;
+
+
     public Submarine(String id, float x, float y, int maxHealth) {
         super(id, x, y, 28f, BODY_HALF_W, BODY_HALF_H);
         this.maxHealth = maxHealth;
@@ -47,6 +57,19 @@ public class Submarine extends Character {
         }
         if (StdDraw.isKeyPressed('Q')) vy -= VERTICAL_ACCEL;
         if (StdDraw.isKeyPressed('E')) vy += VERTICAL_ACCEL;
+        
+        sHeld= StdDraw.isKeyPressed(' ');
+        if(sHeld && !sHeldBefore && dropCooldown==0){
+            dropPow=DROP_MAX;
+            dropCooldown=MAX_COOLDOWN;
+        }
+
+        if(dropCooldown>0){
+            dropCooldown-=1;
+        }
+        
+        
+        sHeldBefore=sHeld;
     }
 
     private void handleRudderInput() {
@@ -99,6 +122,12 @@ public class Submarine extends Character {
             vx *= scale;
             vy *= scale;
         }
+        float drop= Math.min(DROP_MAX, dropPow);
+        drop *= (1f-DROP_DRAG);
+
+        dropPow-= drop;
+
+        vy-=dropPow;
 
         super.update();
     }
