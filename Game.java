@@ -135,8 +135,20 @@ public class Game {
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
 
-        //print ip or localhost if multiplayer, otherwise solo
-        String title = multiplayer ? netClient.host : "Solo";
+        // show local IP in title when hosting so friends know what to connect to
+        String title;
+        if (!multiplayer) {
+            title = "Solo";
+        } else if (args[0].equals("--host")) {
+            try {
+                String localIp = java.net.InetAddress.getLocalHost().getHostAddress();
+                title = "Hosting — " + localIp;
+            } catch (Exception e) {
+                title = "Hosting";
+            }
+        } else {
+            title = "Connected — " + netClient.host;
+        }
         StdDraw.setTitle(title);
     }
 
