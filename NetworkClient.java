@@ -211,8 +211,6 @@ public class NetworkClient {
                 Packets.SubmarineState state = (Packets.SubmarineState) object;
                 if (state.playerId == null) return;
 
-                // get or create a Submarine shell for this remote player
-                // remote subs never run physics — we slam position/angle from the packet
                 Submarine sub = remoteSubs.computeIfAbsent(
                         state.playerId,
                         id -> new Submarine(id, state.x, state.y, state.health));
@@ -220,6 +218,9 @@ public class NetworkClient {
                 sub.setPosition(state.x, state.y);
                 sub.setVelocity(state.vx, state.vy);
                 sub.setAngle(state.angle);
+                
+                // ADD THIS LINE: Sync the health so the radar knows if they are dead
+                sub.syncHealth(state.health); 
                 return;
             }
 

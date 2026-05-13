@@ -1,6 +1,6 @@
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.event.KeyEvent;
+import java.lang.Character;
 
 // Launch menu. Returns args to pass to Game.main().
 // Modes: solo, host server, join server (with IP entry).
@@ -25,8 +25,6 @@ public class Menu {
 
     // IP input for join screen
     private static StringBuilder ipInput = new StringBuilder("localhost");
-    private static long lastKeyTime = 0;
-    private static final long KEY_REPEAT_MS = 80;
 
     public static void main(String[] args) {
         StdDraw.setCanvasSize(W, H);
@@ -53,31 +51,32 @@ public class Menu {
         boolean clicked = StdDraw.isMousePressed();
 
         if (state == STATE_MAIN) {
-            // Solo button: centered at (W/2, 230)
+            // Solo button
             if (clicked && hitButton(mx, my, W / 2.0, 230, 140, 28)) {
                 waitRelease();
                 return new String[]{"--solo"};
             }
-            // Host button: centered at (W/2, 175)
+            // Host button
             if (clicked && hitButton(mx, my, W / 2.0, 175, 140, 28)) {
                 waitRelease();
                 return new String[]{"--host"};
             }
-            // Join button: centered at (W/2, 120)
+            // Join button
             if (clicked && hitButton(mx, my, W / 2.0, 120, 140, 28)) {
                 waitRelease();
+                // Clear the keyboard buffer so menu clicks/keys don't bleed into the text field
+                while (StdDraw.hasNextKeyTyped()) StdDraw.nextKeyTyped();
                 state = STATE_JOIN;
             }
         } else if (state == STATE_JOIN) {
-            // handle typing for IP field
             handleTyping();
 
-            // Connect button: centered at (W/2, 130)
+            // Connect button
             if (clicked && hitButton(mx, my, W / 2.0, 130, 140, 28)) {
                 waitRelease();
                 return new String[]{"--join", ipInput.toString()};
             }
-            // Back button: centered at (W/2, 80)
+            // Back button
             if (clicked && hitButton(mx, my, W / 2.0, 80, 140, 28)) {
                 waitRelease();
                 state = STATE_MAIN;
@@ -86,51 +85,34 @@ public class Menu {
         return null;
     }
 
+    /**
+     * Uses StdDraw's internal key queue to handle typing.
+     * This is much smoother than polling isKeyPressed manually.
+     */
     private static void handleTyping() {
-        long now = System.currentTimeMillis();
-        if (now - lastKeyTime < KEY_REPEAT_MS) return;
+        while (StdDraw.hasNextKeyTyped()) {
+            char c = StdDraw.nextKeyTyped();
 
-        // backspace
-        if (StdDraw.isKeyPressed(KeyEvent.VK_BACK_SPACE)) {
-            if (ipInput.length() > 0)
-                ipInput.deleteCharAt(ipInput.length() - 1);
-            lastKeyTime = now;
-            return;
-        }
-
-        // allowed chars: 0-9, a-z, A-Z, dot, hyphen
-        int[] keyCodes = {
-            '0','1','2','3','4','5','6','7','8','9',
-            'A','B','C','D','E','F','G','H','I','J','K','L','M',
-            'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
-            KeyEvent.VK_PERIOD, KeyEvent.VK_MINUS
-        };
-        char[] chars = {
-            '0','1','2','3','4','5','6','7','8','9',
-            'a','b','c','d','e','f','g','h','i','j','k','l','m',
-            'n','o','p','q','r','s','t','u','v','w','x','y','z',
-            '.', '-'
-        };
-
-        for (int i = 0; i < keyCodes.length; i++) {
-            if (StdDraw.isKeyPressed(keyCodes[i]) && ipInput.length() < 40) {
-                ipInput.append(chars[i]);
-                lastKeyTime = now;
-                return;
+            // Handle Backspace (char code 8)
+            if (c == '\b' || c == 127) {
+                if (ipInput.length() > 0) {
+                    ipInput.deleteCharAt(ipInput.length() - 1);
+                }
+            } 
+            // Handle valid IP characters
+            else if (isValidIpChar(c) && ipInput.length() < 40) {
+                ipInput.append(c);
             }
         }
     }
 
+    private static boolean isValidIpChar(char c) {
+        return Character.isLetterOrDigit(c) || c == '.' || c == '-' || c == ':';
+    }
+
     private static void render() {
-        // background
         StdDraw.setPenColor(COL_BG);
         StdDraw.filledRectangle(W / 2.0, H / 2.0, W / 2.0, H / 2.0);
-
-        // border
-        StdDraw.setPenColor(COL_BORDER);
-        StdDraw.setPenRadius(0.003);
-        StdDraw.rectangle(W / 2.0, H / 2.0, W / 2.0 - 10, H / 2.0 - 10);
-        StdDraw.setPenRadius(0.002);
 
         if (state == STATE_MAIN) renderMain();
         else                     renderJoin();
@@ -140,13 +122,9 @@ public class Menu {
         double mx = StdDraw.mouseX();
         double my = StdDraw.mouseY();
 
-        // title
         StdDraw.setFont(new Font("Monospaced", Font.BOLD, 32));
         StdDraw.setPenColor(COL_TEXT);
         StdDraw.text(W / 2.0, 320, "SUBMARINE");
-        StdDraw.setFont(new Font("Monospaced", Font.PLAIN, 13));
-        StdDraw.setPenColor(COL_DIM);
-        StdDraw.text(W / 2.0, 290, "select game mode");
 
         drawButton("SOLO",          W / 2.0, 230, 140, 28, mx, my);
         drawButton("HOST SERVER",   W / 2.0, 175, 140, 28, mx, my);
@@ -166,7 +144,7 @@ public class Menu {
         StdDraw.text(W / 2.0, 260, "enter server IP");
 
         // IP input box
-        double boxW = 200, boxH = 20;
+        double boxW = 220, boxH = 30;
         double boxX = W / 2.0, boxY = 210;
         StdDraw.setPenColor(COL_BTN);
         StdDraw.filledRectangle(boxX, boxY, boxW / 2, boxH / 2);
@@ -174,9 +152,10 @@ public class Menu {
         StdDraw.setPenRadius(0.002);
         StdDraw.rectangle(boxX, boxY, boxW / 2, boxH / 2);
 
-        StdDraw.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        StdDraw.setFont(new Font("Monospaced", Font.PLAIN, 14));
         StdDraw.setPenColor(COL_TEXT);
-        // blinking cursor
+        
+        // Blinking cursor logic
         long blink = (System.currentTimeMillis() / 500) % 2;
         String display = ipInput.toString() + (blink == 0 ? "|" : " ");
         StdDraw.text(boxX, boxY, display);
@@ -187,12 +166,17 @@ public class Menu {
 
     private static void drawButton(String label, double cx, double cy, double w, double h, double mx, double my) {
         boolean hover = hitButton(mx, my, cx, cy, w, h);
+        
+        // Background
         StdDraw.setPenColor(hover ? COL_BTN_HOV : COL_BTN);
         StdDraw.filledRectangle(cx, cy, w / 2, h / 2);
+        
+        // Border
         StdDraw.setPenColor(COL_BORDER);
-        StdDraw.setPenRadius(hover ? 0.003 : 0.002);
-        StdDraw.rectangle(cx, cy, w / 2, h / 2);
         StdDraw.setPenRadius(0.002);
+        StdDraw.rectangle(cx, cy, w / 2, h / 2);
+
+        // Text
         StdDraw.setFont(new Font("Monospaced", Font.BOLD, 13));
         StdDraw.setPenColor(hover ? COL_SELECTED : COL_DIM);
         StdDraw.text(cx, cy, label);
@@ -202,10 +186,9 @@ public class Menu {
         return Math.abs(mx - cx) < w / 2 && Math.abs(my - cy) < h / 2;
     }
 
-    // wait for mouse release so a click doesn't carry over to the next screen
     private static void waitRelease() {
         while (StdDraw.isMousePressed()) {
-            StdDraw.pause(16);
+            StdDraw.pause(10);
         }
     }
 }

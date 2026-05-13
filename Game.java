@@ -110,15 +110,13 @@ public class Game {
         }
     }
 
-    // ── Init ─────────────────────────────────────────────────────────────────────
-
     private static void setupWindow() {
         StdDraw.setCanvasSize(WIDTH, HEIGHT);
         StdDraw.setXscale(0, WIDTH);
         StdDraw.setYscale(0, HEIGHT);
         StdDraw.enableDoubleBuffering();
 
-        // show local IP in title when hosting so friends know what to connect to
+        // show IP on title so u can share it with friends
         String title;
         if (!multiplayer) {
             title = "Solo";
@@ -264,7 +262,6 @@ public class Game {
 
         player.handleInput();
 
-        // R — radar ping
         boolean rDown = StdDraw.isKeyPressed('R') || StdDraw.isKeyPressed('r');
         if (rDown && !rWasDown && pingAlpha() == 0) {
             pingStartMs = System.currentTimeMillis();
@@ -272,11 +269,29 @@ public class Game {
                     PING_SOUND_STRENGTH, "player_ping"));
 
             updateRadarContacts();
+
             if (!torpedoSystem.hasTorpedo()) {
                 contactIds.clear();
                 contactPos.clear();
-                contactIds.addAll(radarContacts.keySet());
-                contactPos.putAll(radarContacts);
+                
+                // ONLY gather Depth 1 rocks to match RadarScreen.java
+                List<Rock> fgRocks = new ArrayList<>();
+                for (Sprite s : engine.getSprites()) {
+                    if (s instanceof Rock && ((Rock) s).getDepth() == 1) {
+                        fgRocks.add((Rock) s);
+                    }
+                }
+
+                for (Map.Entry<String, float[]> entry : radarContacts.entrySet()) {
+                    String id = entry.getKey();
+                    float[] pos = entry.getValue();
+                    
+                    // LOS check now uses the exact same rocks as the Radar
+                    if (RadarScreen.hasLineOfSight(player.getX(), player.getY(), pos[0], pos[1], fgRocks)) {
+                        contactIds.add(id);
+                        contactPos.put(id, pos);
+                    }
+                }
                 selectedIdx = -1;
             }
 
@@ -285,7 +300,6 @@ public class Game {
                 netClient.sendSoundEvent(player.getX(), player.getY(),
                         PING_SOUND_STRENGTH, "radar");
             }
-            System.out.println("Radar ping!");
         }
         rWasDown = rDown;
 
@@ -398,10 +412,26 @@ public class Game {
                 : null;
 
         drawContactUI();
+                // 1. Get live Submarine objects directly from the network client
+        List<Submarine> contactList = new ArrayList<>(netClient.getRemoteSubs().values());
 
-        RadarScreen.draw(WIDTH, 220, player.getX(), player.getY(),
-                pingAlpha(), radarContacts, foregroundRocks, torpedoPos, bottomLayer,
-                remoteTorpedoPositions, selectedContact, contactDist);
+        // 2. Format torpedoes for the radar 
+        List<float[]> remoteTorpedoList = new ArrayList<>();
+        for (Packets.TorpedoState ts : netClient.getRemoteTorpedoStates().values()) {
+            remoteTorpedoList.add(new float[]{ts.x, ts.y});
+        }
+        RadarScreen.draw(
+            WIDTH, HEIGHT, 
+            player.getX(), player.getY(), 
+            pingAlpha(), 
+            contactList,           // NEW: List<Submarine>
+            foregroundRocks, 
+            torpedoPos, 
+            bottomLayer, 
+            remoteTorpedoPositions,     // NEW: List<float[]>
+            selectedContact, 
+            contactDist
+        );
 
         if (!player.isAlive())
             player.drawDeathScreen(WIDTH, HEIGHT);
@@ -421,23 +451,44 @@ public class Game {
         bottomLayer.drawRadarOutline(engine, alpha);
         StdDraw.setPenRadius(0.002);
     }
-
-    private static void drawContactUI() {
+private static void drawContactUI() {
         if (contactIds.isEmpty()) return;
 
         int rightX = WIDTH - 10;
-        int startY = 340;
+        int startY = 410;
         int lineH = 14;
+
+        // 1. GATHER THE ROCKS (Since 'rocks' isn't global, we get them from the engine)
+        List<Rock> currentRocks = new ArrayList<>();
+        for (Sprite s : engine.getSprites()) {
+            if (s instanceof Rock) {
+                currentRocks.add((Rock) s);
+            }
+        }
 
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
         StdDraw.setPenColor(new java.awt.Color(0, 180, 80));
         StdDraw.textRight(rightX, startY + lineH, "CONTACTS");
 
         for (int i = 0; i < contactIds.size() && i < 9; i++) {
-            String label = String.format("[%d] %s", i + 1, contactIds.get(i));
-            StdDraw.setPenColor(i == selectedIdx
-                    ? new java.awt.Color(255, 220, 80)
-                    : new java.awt.Color(0, 160, 70));
+            String id = contactIds.get(i);
+            Submarine sub = (netClient != null) ? netClient.getRemoteSubs().get(id) : null;
+            
+            // 2. USE THE GATHERED ROCKS for Line of Sight
+            boolean hasLOS = false;
+            if (sub != null) {
+                hasLOS = RadarScreen.hasLineOfSight(player.getX(), player.getY(), sub.getX(), sub.getY(), currentRocks);
+            }
+
+            // Selection Logic (Yellow if selected, Green otherwise)
+            if (i == selectedIdx) {
+                StdDraw.setPenColor(new java.awt.Color(255, 220, 80));
+            } else {
+                StdDraw.setPenColor(new java.awt.Color(0, 160, 70));
+            }
+
+            // Note: If you don't want the [LOST] tag, just use the original label formatting
+            String label = String.format("[%d] %s", i + 1, id);
             StdDraw.textRight(rightX, startY - i * lineH, label);
         }
 

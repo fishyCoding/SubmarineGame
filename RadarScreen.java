@@ -1,15 +1,13 @@
 import java.awt.Color;
 import java.util.List;
-import java.util.Map;
 
 public class RadarScreen {
 
-    private static final int MARGIN = 14;
-    private static final int RADIUS = 90;
-    private static final int DIAMETER = RADIUS * 2;
-    private static final int SAMPLES = 36;
+    private static final int MARGIN = 30;
+    private static final int RADIUS = 140;
+    private static final int SAMPLES = 80;
 
-    private static final float WORLD_RADIUS = 3000f;
+    private static final float WORLD_RADIUS = 3500f;
     private static final float BLAST_RADIUS = 150f;
 
     private static final Color COL_BG = Color.decode("#030E06");
@@ -21,9 +19,14 @@ public class RadarScreen {
     private static final Color COL_LABEL = Color.decode("#00c83c");
     private static final Color COL_TITLE = Color.decode("#00B446");
 
-    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, Map<String, float[]> contacts, List<Rock> rocks, float[] torpedoPos, BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions, float[] selectedContact, float contactDist) {
-        double cx = screenW - MARGIN - RADIUS;
-        double cy = screenH - MARGIN - RADIUS;
+    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, 
+                        List<Submarine> contacts, List<Rock> rocks, float[] torpedoPos, 
+                        BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions, 
+                        float[] selectedContact, float contactDist) {        double cx = screenW - MARGIN - RADIUS;
+        
+        
+        double cy = 0 + MARGIN + RADIUS;
+        System.out.println(screenH);
 
         // background circle
         StdDraw.setPenColor(COL_BG);
@@ -80,52 +83,65 @@ public class RadarScreen {
         // player dot
         StdDraw.setPenColor(new Color(0, 255, 0));
         StdDraw.filledCircle(cx, cy, 1.5);
+// contacts — only shown during a ping
+    if (pingAlpha > 0f && contacts != null && !contacts.isEmpty()) {
+        int contactAlpha = Math.min(255, (int)(pingAlpha * 255));
 
-        // contacts — only shown during a ping
-        if (pingAlpha > 0f && contacts != null && !contacts.isEmpty()) {
-            int contactA = Math.min(255, (int)(pingAlpha * 255));
+        for (Submarine sub : contacts) {
+            // Get position directly from the Submarine object
+            float targetX = sub.getX();
+            float targetY = sub.getY();
 
-            for (Map.Entry<String, float[]> entry : contacts.entrySet()) {
-                float[] pos = entry.getValue();
+            // Line of sight check
+            if (!hasLineOfSight(playerX, playerY, targetX, targetY, rocks)) continue;
 
-                if (!hasLineOfSight(playerX, playerY, pos[0], pos[1], rocks)) continue;
+            float dx = targetX - playerX;
+            float dy = targetY - playerY;
 
-                float dx = pos[0] - playerX;
-                float dy = pos[1] - playerY;
+            double scale = (double) RADIUS / WORLD_RADIUS;
+            double sdx = dx * scale;
+            double sdy = dy * scale;
 
-                double scale = (double) RADIUS / WORLD_RADIUS;
-                double sdx = dx * scale;
-                double sdy = dy * scale;
+            double dist = Math.sqrt(sdx * sdx + sdy * sdy);
+            boolean clamped = dist > RADIUS - 4;
 
-                double dist = Math.sqrt(sdx * sdx + sdy * sdy);
-                boolean clamped = dist > RADIUS - 4;
+            if (clamped) {
+                double norm = (RADIUS - 4) / dist;
+                sdx *= norm;
+                sdy *= norm;
+            }
 
-                if (clamped) {
-                    double norm = (RADIUS - 4) / dist;
-                    sdx *= norm;
-                    sdy *= norm;
-                }
+            double bx = cx + sdx;
+            double by = cy + sdy;
 
-                double bx = cx + sdx;
-                double by = cy + sdy;
+            // Background glow of the blip
+            StdDraw.setPenColor(new Color(0, contactAlpha / 4, 0));
+            StdDraw.filledCircle(bx, by, clamped ? 6 : 7);
 
-                StdDraw.setPenColor(new Color(0, contactA / 4, 0));
-                StdDraw.filledCircle(bx, by, clamped ? 6 : 7);
+            // Logic to determine color based on alive status
+            Color blipCol;
+            if (!sub.isAlive()) {
+                blipCol = Color.DARK_GRAY; // Visual indicator for a wreck
+            } else {
+                blipCol = clamped ? COL_EDGE : COL_CONTACT;
+            }
 
-                Color blipCol = clamped ? COL_EDGE : COL_CONTACT;
-                StdDraw.setPenColor(new Color(blipCol.getRed(), blipCol.getGreen(), blipCol.getBlue(), contactA));
-                StdDraw.filledCircle(bx, by, clamped ? 3 : 4);
+            StdDraw.setPenColor(new Color(blipCol.getRed(), blipCol.getGreen(), blipCol.getBlue(), contactAlpha));
+            StdDraw.filledCircle(bx, by, clamped ? 3 : 4);
 
-                if (!clamped) {
-                    String label = entry.getKey();
-                    if (label.length() > 8) label = label.substring(0, 8);
-                    StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 8));
-                    StdDraw.setPenColor(new Color(COL_LABEL.getRed(), COL_LABEL.getGreen(), COL_LABEL.getBlue(), contactA));
-                    StdDraw.textLeft(bx + 5, by + 5, label);
-                }
+            if (!clamped) {
+                String label = sub.getId(); // Get ID directly
+                if (label.length() > 8) label = label.substring(0, 8);
+                
+                // Optional: Add (DEAD) to the label if they are destroyed
+                if (!sub.isAlive()) label += " (X)";
+
+                StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 8));
+                StdDraw.setPenColor(new Color(COL_LABEL.getRed(), COL_LABEL.getGreen(), COL_LABEL.getBlue(), contactAlpha));
+                StdDraw.textLeft(bx + 5, by + 5, label);
             }
         }
-
+    }
         // torpedo blip — yellow triangle, always shown while torpedo is alive
         if (torpedoPos != null) {
             float tdx = torpedoPos[0] - playerX;
@@ -324,7 +340,7 @@ public class RadarScreen {
                      cx + rax + tEnd   * dx, cy + ray + tEnd   * dy);
     }
 
-    private static boolean hasLineOfSight(float x1, float y1, float x2, float y2, List<Rock> rocks) {
+    public static boolean hasLineOfSight(float x1, float y1, float x2, float y2, List<Rock> rocks) {
         for (int i = 1; i < SAMPLES; i++) {
             float t = (float) i / SAMPLES;
             float px = x1 + t * (x2 - x1);
