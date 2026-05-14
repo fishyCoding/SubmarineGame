@@ -7,7 +7,11 @@ public class RadarScreen {
     private static final int RADIUS = 140;
     private static final int SAMPLES = 80;
 
-    private static final float WORLD_RADIUS = 3500f;
+    private float WORLD_RADIUS = 3500f;
+    private static final float ZOOMCHANGE=500f;
+    private static final float MAXZOOM=6000f;
+    private static final float MINZOOM=1500f;
+
     private static final float BLAST_RADIUS = 150f;
 
     private static final Color COL_BG = Color.decode("#030E06");
@@ -19,14 +23,20 @@ public class RadarScreen {
     private static final Color COL_LABEL = Color.decode("#00c83c");
     private static final Color COL_TITLE = Color.decode("#00B446");
 
-    public static void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, 
+    public void minus(){
+        WORLD_RADIUS=Math.min(MAXZOOM, WORLD_RADIUS+ZOOMCHANGE);
+    }
+    public void plus(){
+        WORLD_RADIUS=Math.max(MINZOOM, WORLD_RADIUS-ZOOMCHANGE);
+
+    }
+    public void draw(int screenW, int screenH, float playerX, float playerY, float pingAlpha, 
                         List<Submarine> contacts, List<Rock> rocks, float[] torpedoPos, 
                         BottomRockLayer bottomLayer, List<float[]> remoteTorpedoPositions, 
-                        float[] selectedContact, float contactDist) {        double cx = screenW - MARGIN - RADIUS;
-        
-        
+                        float[] selectedContact, float contactDist) {        
+                            
+        double cx = screenW - MARGIN - RADIUS;
         double cy = 0 + MARGIN + RADIUS;
-        System.out.println(screenH);
 
         // background circle
         StdDraw.setPenColor(COL_BG);

@@ -24,6 +24,7 @@ public class Game {
     private static final long PING_DURATION_MS = 2500;
     private static long pingStartMs = -1;
     private static final float PING_SOUND_STRENGTH = 10000f;
+    private static RadarScreen rscreen= new RadarScreen();
 
     // contacts the radar has detected
     private static final java.util.Map<String, float[]> radarContacts = new java.util.concurrent.ConcurrentHashMap<>();
@@ -55,6 +56,9 @@ public class Game {
     private static long tick = 0;
     private static boolean mouseWasDown = false;
     private static boolean rWasDown = false;
+    private static boolean plusWasDown = false;
+    private static boolean minusWasDown = false;
+
 
     public static void main(String[] args) {
         parseArgs(args);
@@ -192,9 +196,7 @@ public class Game {
                 float dy = player.getY() - d.y;
                 if (dx * dx + dy * dy <= d.blastRadius * d.blastRadius) {
                     int currentDamage = Torpedo.getDamage((float) Math.sqrt(dx * dx + dy * dy));
-                    System.out.println(currentDamage);
                     player.takeDamage(currentDamage);
-                    System.out.println("Hit by remote torpedo from " + (float) Math.sqrt(dx * dx + dy * dy) + "!");
                 }
             }
 
@@ -202,7 +204,6 @@ public class Game {
 
             for (Packets.RadarPing ping : netClient.drainPings()) {
                 sounds.add(new RadarSound(ping.x, ping.y, PING_SOUND_STRENGTH, ping.playerId));
-                System.out.println("Remote ping from " + ping.playerId);
             }
         }
 
@@ -220,8 +221,6 @@ public class Game {
                     fgRocks, bottomLayer, remotes, player);
         }
     }
-
-    // ── Collision ─────────────────────────────────────────────────────────────────
 
     private static void checkCollisions() {
         if (!player.isAlive()) return;
@@ -261,6 +260,20 @@ public class Game {
         }
 
         player.handleInput();
+
+        boolean plusDown = StdDraw.isKeyPressed('=') || StdDraw.isKeyPressed('+');
+        if(plusDown && !plusWasDown){
+            rscreen.plus();
+        }
+        plusWasDown=plusDown;
+        
+        boolean minusDown = StdDraw.isKeyPressed('-') || StdDraw.isKeyPressed('_');
+        if(minusDown && !minusWasDown){
+            rscreen.minus();
+        }
+        minusWasDown=minusDown;
+
+
 
         boolean rDown = StdDraw.isKeyPressed('R') || StdDraw.isKeyPressed('r');
         if (rDown && !rWasDown && pingAlpha() == 0) {
@@ -420,7 +433,7 @@ public class Game {
         for (Packets.TorpedoState ts : netClient.getRemoteTorpedoStates().values()) {
             remoteTorpedoList.add(new float[]{ts.x, ts.y});
         }
-        RadarScreen.draw(
+        rscreen.draw(
             WIDTH, HEIGHT, 
             player.getX(), player.getY(), 
             pingAlpha(), 
