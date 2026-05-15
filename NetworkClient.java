@@ -82,7 +82,7 @@ public class NetworkClient {
         client.sendUDP(state);
     }
 
-    // type: "radar", "engine", etc.
+    // type: "radar", "engine", "torpedo_explosion", etc.
     public void sendSoundEvent(float x, float y, float strength, String type) {
         if (!connected || myId == null) return;
 
@@ -132,7 +132,8 @@ public class NetworkClient {
 
     // ── Draining pending events into the game ────────────────────────────────────
 
-    // Call once per frame. Converts pending SoundEvents into Sound objects.
+    // Call once per frame. Converts pending SoundEvents into Sound objects and
+    // appends them to the provided list. Handles "radar" and "torpedo_explosion".
     public void drainSounds(List<Sound> sounds) {
         synchronized (pendingSounds) {
             for (Packets.SoundEvent ev : pendingSounds) {
@@ -152,10 +153,15 @@ public class NetworkClient {
         }
     }
 
+    // Converts a SoundEvent packet into the appropriate Sound subclass.
+    // Add new sound types here as the game grows.
     private Sound buildSound(Packets.SoundEvent ev) {
         switch (ev.type) {
             case "radar":
                 return new RadarSound(ev.x, ev.y, ev.strength, ev.playerId);
+            case "torpedo_explosion":
+                // Same class used locally when our own torpedo detonates.
+                return new TorpedoSound(ev.x, ev.y, ev.strength, "remote_ping");
             default:
                 return new Sound(ev.x, ev.y, ev.strength, ev.playerId) {};
         }
@@ -218,13 +224,13 @@ public class NetworkClient {
                 sub.setPosition(state.x, state.y);
                 sub.setVelocity(state.vx, state.vy);
                 sub.setAngle(state.angle);
-                
-                // ADD THIS LINE: Sync the health so the radar knows if they are dead
-                sub.syncHealth(state.health); 
+                sub.syncHealth(state.health);
                 return;
             }
 
             if (object instanceof Packets.SoundEvent) {
+                // All sound types (radar, torpedo_explosion, engine, …) go into
+                // pendingSounds. buildSound() dispatches to the right class.
                 pendingSounds.add((Packets.SoundEvent) object);
                 return;
             }

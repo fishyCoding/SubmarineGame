@@ -210,16 +210,9 @@ public class Game {
                 sounds.add(new TorpedoSound(d.x, d.y, 15000f, "remote_torpedo"));
             }
 
+            // drainSounds handles all types: "radar", "torpedo_explosion", etc.
+            // The dispatch happens inside NetworkClient.buildSound().
             netClient.drainSounds(sounds);
-            // find this existing block in drainNetwork():
-netClient.drainSounds(sounds);
-
-            // Add this logic immediately after it to catch torpedo sounds specifically:
-            for (Packets.SoundEvent se : netClient.drainSoundEvents()) {
-                if ("torpedo_explosion".equals(se.type)) {
-                    sounds.add(new TorpedoSound(se.x, se.y, se.strength, "remote_ping"));
-                }
-            }
 
             for (Packets.RadarPing ping : netClient.drainPings()) {
                 sounds.add(new RadarSound(ping.x, ping.y, PING_SOUND_STRENGTH, ping.playerId));
