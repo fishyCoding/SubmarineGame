@@ -189,7 +189,14 @@ public class Game {
 
     // --- ADDED: Match RadarSound pattern ---
     // 1. Add it to your own list immediately
-    sounds.add(new TorpedoSound(t.getX(), t.getY(), 25000f, "player_ping")); 
+    // Close detonations (<400 units) ring the whole sonar omni-directionally,
+    // like a shockwave through the hull. Distant ones appear as a directional
+    // contact on the passive sonar instead.
+    float _dx = t.getX() - player.getX();
+    float _dy = t.getY() - player.getY();
+    float _distSq = _dx * _dx + _dy * _dy;
+    String torpSoundOwner = (_distSq < 400f * 400f) ? "player_ping" : "remote_ping";
+    sounds.add(new TorpedoSound(t.getX(), t.getY(), 25000f, torpSoundOwner));
     
     // 2. Tell the network to send a "sound event" to others
     if (multiplayer && netClient != null) {
