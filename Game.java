@@ -5,8 +5,8 @@ import java.util.Map;
 public class Game {
 
     // Canvas
-    private static final int WIDTH = 1300;
-    private static final int HEIGHT = 800;
+    private static final int WIDTH = 650;
+    private static final int HEIGHT = 400;
     private static final double CX = WIDTH / 2.0;
     private static final double CY = HEIGHT / 2.0;
 
@@ -182,13 +182,22 @@ public class Game {
             if (torpedoSystem.hasTorpedo()) {
                 Torpedo t = torpedoSystem.getTorpedo();
                 netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), true);
-            } else if (torpedoSystem.getTorpedo() != null
-                    && torpedoSystem.getTorpedo().hasExploded()) {
-                Torpedo t = torpedoSystem.getTorpedo();
-                netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), false);
-                netClient.sendTorpedoDetonate(t.getX(), t.getY(), t.getBlastRadius(), t.getDamage());
-                torpedoSystem.resetTorpedo();
-            }
+            } else if (torpedoSystem.getTorpedo() != null && torpedoSystem.getTorpedo().hasExploded()) {
+    Torpedo t = torpedoSystem.getTorpedo();
+    netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), false);
+    netClient.sendTorpedoDetonate(t.getX(), t.getY(), t.getBlastRadius(), t.getDamage());
+
+    // --- ADDED: Match RadarSound pattern ---
+    // 1. Add it to your own list immediately
+    sounds.add(new TorpedoSound(t.getX(), t.getY(), 25000f, "player_ping")); 
+    
+    // 2. Tell the network to send a "sound event" to others
+    if (multiplayer && netClient != null) {
+        netClient.sendSoundEvent(t.getX(), t.getY(), 25000f, "torpedo_explosion");
+    }
+
+    torpedoSystem.resetTorpedo();
+}
 
             // drain remote detonations — apply damage to local player
             for (Packets.TorpedoDetonate d : netClient.drainDetonations()) {
@@ -198,6 +207,7 @@ public class Game {
                     int currentDamage = Torpedo.getDamage((float) Math.sqrt(dx * dx + dy * dy));
                     player.takeDamage(currentDamage);
                 }
+                sounds.add(new TorpedoSound(d.x, d.y, 15000f, "remote_torpedo"));
             }
 
             netClient.drainSounds(sounds);
@@ -402,9 +412,9 @@ public class Game {
         torpedoSystem.draw(engine);
         HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);
 
-        float perceived = Sound.totalPerceivedAt(sounds, player.getX(), player.getY());
-        PassiveSonar.draw(perceived, HEIGHT, tick);
-
+        // Pass the player's world position and the active sound list
+// Pass the player position and the full sound list for directional processing
+    PassiveSonar.draw(player.getX(), player.getY(), sounds, tick);
         List<Rock> foregroundRocks = new ArrayList<>();
         for (Sprite s : engine.getSprites())
             if (s instanceof Rock && ((Rock) s).getDepth() == 1)

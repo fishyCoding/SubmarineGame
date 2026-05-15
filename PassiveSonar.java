@@ -1,38 +1,95 @@
 import java.awt.Color;
-
+import java.util.List;
 
 public class PassiveSonar {
 
-    //base panel vars
-    private static final int PANEL_X = 10;
-    private static final int PANEL_Y = 200;
-    private static final int PANEL_W = 220;
-    private static final int PANEL_H = 90;
+    private static final int CENTER_X = 115;
+    private static final int CENTER_Y = 220;
+    private static final double BASE_RADIUS = 45.0;
+    private static final double MAX_STRETCH = 55.0; 
+    private static final int RESOLUTION = 100; // Increased slightly for better curvature
 
-    private static final float  MAX_INTENSITY = 3000f;
+    private static final Color SONAR_GREEN = new Color(0, 220, 100);
+    private static final Color SONAR_DARK = new Color(0, 25, 10, 230);
 
+    public static void draw(float px, float py, List<Sound> sounds, long tick) {
+        double[] intensities = new double[RESOLUTION];
+        double[] smoothed = new double[RESOLUTION];
+        double[] xPoints = new double[RESOLUTION];
+        double[] yPoints = new double[RESOLUTION];
 
-    public static void draw(float rawIntensity, int screenH, long tick) {
+        // 1. CALCULATE PLAYER PING (Self-Interference)
+        double omniSurge = 0;
+        for (Sound s : sounds) {
+            if ("player_ping".equals(s.getOwner())) {
+                float strength = s.perceivedAt(px, py);
+                omniSurge += (1.0 - Math.exp(-strength / 5000.0));
+            }
+        }
 
-        double px = PANEL_X;
-        double py = PANEL_Y;
-        double pw = PANEL_W;
-        double ph = PANEL_H;
- 
+        // 2. GENERATE RADIUS DATA
+        for (int i = 0; i < RESOLUTION; i++) {
+            double angle = (i * 2.0 * Math.PI) / RESOLUTION;
 
+            // BACKGROUND CHURN
+            double wave = Math.sin(angle * 2.0 + tick * 0.005) * 0.05;
+            
+            // --- DYNAMIC NOISE FLOOR ---
+            // Increased multiplier (0.8) and using irregular frequencies to break symmetry
+            double noiseScale = 0.02 + (omniSurge * 0.8);
+            double layer1 = Math.sin(angle * 13.73 + tick * 0.04) * 0.5;
+            double layer2 = Math.sin(angle * 27.11 - tick * 0.07) * 0.3;
+            double grain = (layer1 + layer2) * noiseScale;
+            
+            double dIntensity = (omniSurge * 0.45) + wave + grain;
 
-        StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 10));
-        StdDraw.setPenColor(new Color(0, 180, 80));
-        StdDraw.textLeft(px + 4, py + ph + 6, "PASSIVE SONAR");
+            // 3. DIRECTIONAL CONTACTS
+            for (Sound s : sounds) {
+                if ("player_ping".equals(s.getOwner())) continue;
 
-        double barW  = pw - 8;
-        double fillW = barW * Math.min(1.0, rawIntensity / MAX_INTENSITY);
-        StdDraw.setPenColor(new Color(0, 30, 10));
-        StdDraw.filledRectangle(px + 4 + barW / 2.0, py + ph + 14, barW / 2.0, 3);
-        StdDraw.setPenColor(new Color(0, 200, 80));
-        if (fillW > 0)
-            StdDraw.filledRectangle(px + 4 + fillW / 2.0, py + ph + 14, fillW / 2.0, 3);
+                float dx = s.getX() - px;
+                float dy = s.getY() - py;
+                double angleToSound = Math.atan2(dy, dx);
+                if (angleToSound < 0) angleToSound += (2.0 * Math.PI);
 
-        
+                double diff = Math.abs(angle - angleToSound);
+                if (diff > Math.PI) diff = (2.0 * Math.PI) - diff;
+
+                // --- THE FIX: BROAD FALLOFF ---
+                // windowSize is now more than double the sigma to ensure a 0-intensity landing
+                double windowSize = 1.8; 
+                if (diff < windowSize) {
+                    double sigma = 0.8; 
+                    double bellCurve = Math.exp(-(diff * diff) / (2 * sigma * sigma));
+                    double strength = 1.0 - Math.exp(-s.perceivedAt(px, py) / 4500.0);
+                    
+                    dIntensity += strength * bellCurve;
+                }
+            }
+            intensities[i] = dIntensity;
+        }
+
+        // 4. FINAL SMOOTHING (The Blur)
+        for (int i = 0; i < RESOLUTION; i++) {
+            int p1 = (i - 1 + RESOLUTION) % RESOLUTION;
+            int n1 = (i + 1) % RESOLUTION;
+            smoothed[i] = (intensities[p1] * 0.25) + (intensities[i] * 0.5) + (intensities[n1] * 0.25);
+        }
+
+        // 5. COORDINATE MAPPING
+        for (int i = 0; i < RESOLUTION; i++) {
+            double angle = (i * 2.0 * Math.PI) / RESOLUTION;
+            double r = BASE_RADIUS + (Math.max(0, smoothed[i]) * MAX_STRETCH);
+            xPoints[i] = CENTER_X + Math.cos(angle) * r;
+            yPoints[i] = CENTER_Y + Math.sin(angle) * r;
+        }
+
+        // Render
+        StdDraw.setPenColor(SONAR_DARK);
+        StdDraw.filledPolygon(xPoints, yPoints);
+        StdDraw.setPenRadius(0.004);
+        StdDraw.setPenColor(SONAR_GREEN);
+        StdDraw.polygon(xPoints, yPoints);
+        StdDraw.filledCircle(CENTER_X, CENTER_Y, 2);
     }
 }

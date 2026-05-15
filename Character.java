@@ -25,7 +25,6 @@ public abstract class Character extends Sprite {
         y += vy;
     }
 
-    // dragCoefficient: 0 = no drag, 1 = instant stop
     public void applyDrag(float dragCoefficient) {
         vx *= (1f - dragCoefficient);
         vy *= (1f - dragCoefficient);
