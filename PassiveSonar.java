@@ -9,6 +9,9 @@ public class PassiveSonar {
     private static final double MAX_STRETCH = 50.0;
     private static final int   RESOLUTION  = 180;  // finer ring = smoother curves
 
+
+    private static final double PEAKNOISECOEF=1.6;
+
     // Smoothing passes: more passes = rounder, more organic contacts
     private static final int SMOOTH_PASSES = 4;
 
@@ -79,6 +82,13 @@ public class PassiveSonar {
                     intensity += strength * window;
                 }
             }
+
+            // Extra noise that scales with the local intensity — loud peaks get
+            // grainier / more turbulent texture, quiet directions stay smooth.
+            double peakNoise = Math.sin(angle * 41.3 + tick * 0.031)
+                             * Math.sin(angle * 67.7 - tick * 0.019)
+                             * PEAKNOISECOEF;  // tweak 0.18 to taste: higher = grainier peaks
+            intensity += intensity * peakNoise;
 
             raw[i] = Math.max(0, intensity);
         }

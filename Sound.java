@@ -5,7 +5,7 @@ public class Sound {
     // Const  
     public static float DECAY_RATE     = 0.015f;
     public static final float DEAD_THRESHOLD = 0.5f;
-    public static final float FALLOFF        = 0.000003f; //Lower means sound carries farther
+    public static final float FALLOFF        = 0.0000015f; //Lower means sound carries farther
 
     float x;
     float y;
