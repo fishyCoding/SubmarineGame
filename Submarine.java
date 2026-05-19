@@ -311,8 +311,7 @@ public class Submarine extends Character {
 
     @Override
     public String serialize() {
-        return String.format("SUBMARINE %s %.2f %.2f %.2f %.2f %.2f %d %d",
-                id, x, y, vx, vy, angle, health, maxHealth);
+        return String.format("SUBMARINE %s %.2f %.2f %.2f %.2f %.2f %d %d", id, x, y, vx, vy, angle, health, maxHealth);
     }
 
     public int getHealth() { return health; }

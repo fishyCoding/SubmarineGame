@@ -151,7 +151,6 @@ public class Game {
     private static void setupSounds() {
         engineSound = new EngineSound(player);
         sounds.add(engineSound);
-        sounds.add(new BackgroundSound(player));
     }
 
     private static void gameLoop() {
@@ -196,7 +195,7 @@ public class Game {
     float _dy = t.getY() - player.getY();
     float _distSq = _dx * _dx + _dy * _dy;
     String torpSoundOwner = (_distSq < 400f * 400f) ? "player_ping" : "remote_ping";
-    sounds.add(new TorpedoSound(t.getX(), t.getY(), 25000f, torpSoundOwner));
+    sounds.add(new TorpedoSound(t.getX(), t.getY(), torpSoundOwner));
     
     // 2. Tell the network to send a "sound event" to others
     if (multiplayer && netClient != null) {
@@ -214,7 +213,7 @@ public class Game {
                     int currentDamage = Torpedo.getDamage((float) Math.sqrt(dx * dx + dy * dy));
                     player.takeDamage(currentDamage);
                 }
-                sounds.add(new TorpedoSound(d.x, d.y, 15000f, "remote_torpedo"));
+                sounds.add(new TorpedoSound(d.x, d.y, "remote_torpedo"));
             }
 
             // drainSounds handles all types: "radar", "torpedo_explosion", etc.

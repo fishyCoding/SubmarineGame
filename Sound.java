@@ -2,15 +2,15 @@ import java.util.List;
 
 public class Sound {
 
-    // Const  
+    //global sound consts  
     public static float DECAY_RATE     = 0.015f;
     public static final float DEAD_THRESHOLD = 0.5f;
-    public static final float FALLOFF        = 0.0000015f; //Lower means sound carries farther
+    public static final float FALLOFF        = 0.0000015f;
 
     float x;
     float y;
     float strength;   // current intensity
-    String owner;      // "player", "environment", etc.
+    String owner; // "player" or "environment", etc.
 
 
     public Sound(float x, float y, float strength, String owner) {

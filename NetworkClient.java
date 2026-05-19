@@ -161,7 +161,7 @@ public class NetworkClient {
                 return new RadarSound(ev.x, ev.y, ev.strength, ev.playerId);
             case "torpedo_explosion":
                 // Same class used locally when our own torpedo detonates.
-                return new TorpedoSound(ev.x, ev.y, ev.strength, "remote_ping");
+                return new TorpedoSound(ev.x, ev.y, "remote_ping");
             default:
                 return new Sound(ev.x, ev.y, ev.strength, ev.playerId) {};
         }
