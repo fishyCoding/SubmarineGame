@@ -4,7 +4,7 @@ public abstract class Character extends Sprite {
     // physics state
     protected float vx;
     protected float vy;
-    protected float angle; // degrees (0 = right, 90 = up)
+    protected float angle; // in degrees 0= right 90= up
 
     protected String id;
     protected float collisionRadius;
@@ -18,13 +18,12 @@ public abstract class Character extends Sprite {
         this.angle = 0;
     }
 
-    // ── Physics ──────────────────────────────────────────────────────────────────
-
+    //add velocity to position
     public void update() {
         x += vx;
         y += vy;
     }
-
+    
     public void applyDrag(float dragCoefficient) {
         vx *= (1f - dragCoefficient);
         vy *= (1f - dragCoefficient);

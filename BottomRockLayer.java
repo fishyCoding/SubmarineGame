@@ -31,8 +31,7 @@ public class BottomRockLayer {
         load();
     }
 
-    // ── Persistence ─────────────────────────────────────────────────────────────
-
+    //save points to txt file
     public void save() {
         try (PrintWriter pw = new PrintWriter(new FileWriter(saveFile))) {
             pw.println("# BottomRockLayer control points — worldX worldY per line");
@@ -42,7 +41,7 @@ public class BottomRockLayer {
             System.err.println("Could not save seafloor: " + e.getMessage());
         }
     }
-
+    //load points from the txt file
     private void load() {
         try (BufferedReader br = new BufferedReader(new FileReader(saveFile))) {
             int idx = 0;
@@ -64,7 +63,6 @@ public class BottomRockLayer {
         }
     }
 
-    // ── Point access (used by SeafloorPoint) ────────────────────────────────────
 
     public float getPointWorldX(int i) { return worldX[i]; }
     public float getPointWorldY(int i) { return worldY[i]; }
@@ -75,7 +73,6 @@ public class BottomRockLayer {
             worldY[index] = wy;
     }
 
-    // ── Collision ────────────────────────────────────────────────────────────────
 
     // Linearly interpolate the floor Y at world X.
     public float getFloorYAt(float wx) {
@@ -92,7 +89,6 @@ public class BottomRockLayer {
         return worldY[lo] + t * (worldY[lo + 1] - worldY[lo]);
     }
 
-    // ── Rendering ────────────────────────────────────────────────────────────────
 
     public void draw(GameEngine engine) {
         int first = 0, last = NUM_POINTS - 1;
@@ -119,7 +115,6 @@ public class BottomRockLayer {
         StdDraw.setPenColor(BASE);
         StdDraw.filledPolygon(xs, ys);
 
-        // outline along top edge only
         StdDraw.setPenColor(OUTLINE);
         StdDraw.setPenRadius(0.01);
         for (int i = 0; i < visible - 1; i++)
@@ -128,7 +123,7 @@ public class BottomRockLayer {
         StdDraw.setPenRadius(0.002);
     }
 
-    // Green radar outline — called by Game during a ping.
+    // Draw the green sonar outline on the top of the seafloor
     public void drawRadarOutline(GameEngine engine, float alpha) {
         if (alpha <= 0f) return;
         int first = 0, last = NUM_POINTS - 1;

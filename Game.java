@@ -83,6 +83,7 @@ public class Game {
         }
     }
 
+
     private static void setupNetwork(String[] args) {
         if (!multiplayer) return;
 
@@ -186,18 +187,12 @@ public class Game {
     netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), false);
     netClient.sendTorpedoDetonate(t.getX(), t.getY(), t.getBlastRadius(), t.getDamage());
 
-    // --- ADDED: Match RadarSound pattern ---
-    // 1. Add it to your own list immediately
-    // Close detonations (<400 units) ring the whole sonar omni-directionally,
-    // like a shockwave through the hull. Distant ones appear as a directional
-    // contact on the passive sonar instead.
     float _dx = t.getX() - player.getX();
     float _dy = t.getY() - player.getY();
     float _distSq = _dx * _dx + _dy * _dy;
     String torpSoundOwner = (_distSq < 400f * 400f) ? "player_ping" : "remote_ping";
     sounds.add(new TorpedoSound(t.getX(), t.getY(), torpSoundOwner));
     
-    // 2. Tell the network to send a "sound event" to others
     if (multiplayer && netClient != null) {
         netClient.sendSoundEvent(t.getX(), t.getY(), 25000f, "torpedo_explosion");
     }
@@ -389,11 +384,12 @@ public class Game {
         if (!sounds.contains(engineSound)) sounds.add(engineSound);
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────────
+    // Render (once every tick)
 
     private static void render() {
         water.drawWaterGradient();
 
+        //rock draw
         for (Sprite s : engine.getSprites())
             if (s instanceof Rock && ((Rock) s).getDepth() == 0)
                 s.draw(engine);
@@ -402,27 +398,34 @@ public class Game {
             if (s instanceof Rock && ((Rock) s).getDepth() == 1)
                 s.draw(engine);
 
+        // seafloor
         bottomLayer.draw(engine);
 
+        //enemy subs and torpedos
         if (multiplayer && netClient != null) {
             for (Submarine remote : netClient.getRemoteSubs().values())
                 remote.draw(engine);
             for (Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values())
                 new Torpedo(t.playerId, t.x, t.y, t.angle).draw(engine);
         }
+        torpedoSystem.draw(engine);
 
+
+        //fog of war outline
         HUD.drawFog(HEIGHT, WIDTH, CX, CY);
 
+        //sonar ping outlines go above the fog 
         if (pingAlpha() > 0f)
             drawRadarOutlines(pingAlpha());
 
+        //player and HUD
         player.drawCentred(CX, CY);
-        torpedoSystem.draw(engine);
         HUD.drawHUD(WIDTH, HEIGHT, CX, CY, player);
 
-        // Pass the player's world position and the active sound list
-// Pass the player position and the full sound list for directional processing
-    PassiveSonar.draw(player.getX(), player.getY(), sounds, tick);
+        //tick number is passed b/c it gets used in noise calculations
+        PassiveSonar.draw(player.getX(), player.getY(), sounds, tick);
+
+
         List<Rock> foregroundRocks = new ArrayList<>();
         for (Sprite s : engine.getSprites())
             if (s instanceof Rock && ((Rock) s).getDepth() == 1)
@@ -443,10 +446,8 @@ public class Game {
                 : null;
 
         drawContactUI();
-                // 1. Get live Submarine objects directly from the network client
         List<Submarine> contactList = new ArrayList<>(netClient.getRemoteSubs().values());
 
-        // 2. Format torpedoes for the radar 
         List<float[]> remoteTorpedoList = new ArrayList<>();
         for (Packets.TorpedoState ts : netClient.getRemoteTorpedoStates().values()) {
             remoteTorpedoList.add(new float[]{ts.x, ts.y});
@@ -455,11 +456,11 @@ public class Game {
             WIDTH, HEIGHT, 
             player.getX(), player.getY(), 
             pingAlpha(), 
-            contactList,           // NEW: List<Submarine>
+            contactList,
             foregroundRocks, 
             torpedoPos, 
             bottomLayer, 
-            remoteTorpedoPositions,     // NEW: List<float[]>
+            remoteTorpedoPositions,
             selectedContact, 
             contactDist
         );
@@ -482,14 +483,13 @@ public class Game {
         bottomLayer.drawRadarOutline(engine, alpha);
         StdDraw.setPenRadius(0.002);
     }
-private static void drawContactUI() {
+    private static void drawContactUI() {
         if (contactIds.isEmpty()) return;
 
         int rightX = WIDTH - 10;
         int startY = 410;
         int lineH = 14;
 
-        // 1. GATHER THE ROCKS (Since 'rocks' isn't global, we get them from the engine)
         List<Rock> currentRocks = new ArrayList<>();
         for (Sprite s : engine.getSprites()) {
             if (s instanceof Rock) {
@@ -503,22 +503,15 @@ private static void drawContactUI() {
 
         for (int i = 0; i < contactIds.size() && i < 9; i++) {
             String id = contactIds.get(i);
-            Submarine sub = (netClient != null) ? netClient.getRemoteSubs().get(id) : null;
             
-            // 2. USE THE GATHERED ROCKS for Line of Sight
-            boolean hasLOS = false;
-            if (sub != null) {
-                hasLOS = RadarScreen.hasLineOfSight(player.getX(), player.getY(), sub.getX(), sub.getY(), currentRocks);
-            }
+ 
 
-            // Selection Logic (Yellow if selected, Green otherwise)
             if (i == selectedIdx) {
                 StdDraw.setPenColor(new java.awt.Color(255, 220, 80));
             } else {
                 StdDraw.setPenColor(new java.awt.Color(0, 160, 70));
             }
 
-            // Note: If you don't want the [LOST] tag, just use the original label formatting
             String label = String.format("[%d] %s", i + 1, id);
             StdDraw.textRight(rightX, startY - i * lineH, label);
         }

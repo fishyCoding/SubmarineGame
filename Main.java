@@ -156,7 +156,7 @@ public class Main {
     private static float worldMouseY() { return engine.screenToWorldY(StdDraw.mouseY()); }
 
     private static void printHelp() {
-        System.out.println("=== Submarine Game Editor ===");
+        System.out.println("--Submarine Game Editor--");
         System.out.println("  Click        → select rock or floor point");
         System.out.println("  Shift+Click  → add vertex to selected rock");
         System.out.println("  Drag         → move selected rock or floor point");

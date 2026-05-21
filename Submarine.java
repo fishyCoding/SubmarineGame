@@ -1,6 +1,6 @@
 public class Submarine extends Character {
 
-    private int maxHealth;
+    final private int maxHealth;
     private int health;
     private boolean alive;
     private float rudderAngle = 0f;
@@ -198,7 +198,6 @@ public class Submarine extends Character {
         StdDraw.polygon(hx, hy);
         StdDraw.setPenRadius(0.002);
 
-        // rudder fin at the stern, deflected by rudderAngle
         double sternX = sx - cos * BODY_HALF_W;
         double sternY = sy - sin * BODY_HALF_W;
 

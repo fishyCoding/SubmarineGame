@@ -12,8 +12,6 @@ public class GameEngine {
     private float cameraX;
     private float cameraY;
 
-    // ── Construction ─────────────────────────────────────────────────────────────
-
     public GameEngine(String dataFile) {
         this.sprites = new ArrayList<>();
         this.seafloorPoints = new ArrayList<>();
@@ -27,7 +25,6 @@ public class GameEngine {
         seafloorPoints.add(s);
     }
 
-    // ── Sprite I/O ───────────────────────────────────────────────────────────────
 
     public void loadSprites() {
         sprites.clear();
@@ -51,13 +48,13 @@ public class GameEngine {
         String[] parts = line.trim().split("\\s+");
         if (parts.length == 0) return null;
         switch (parts[0]) {
-            // "POLYGON" and "IMAGEROCK" kept for backwards-compatibility with old save files
             case "POLYGON":
             case "ROCK":
-            case "IMAGEROCK": return Rock.deserialize(line);
             default: return null;
         }
     }
+
+    //editor functions. Bellow are all the functions that only get called when using the editor not during runtime
 
     public void saveSprites() {
         try (PrintWriter writer = new PrintWriter(new FileWriter(dataFile))) {
@@ -70,7 +67,6 @@ public class GameEngine {
         }
     }
 
-    // ── Sprite management ────────────────────────────────────────────────────────
 
     public Rock createRock(float x, float y, int depth) {
         return new Rock(x, y, depth);
@@ -94,7 +90,6 @@ public class GameEngine {
     }
 
     public Sprite getSpriteAt(float worldX, float worldY) {
-        // check seafloor points first (small targets, prioritise them)
         for (int i = seafloorPoints.size() - 1; i >= 0; i--)
             if (seafloorPoints.get(i).contains(worldX, worldY)) return seafloorPoints.get(i);
         for (int i = sprites.size() - 1; i >= 0; i--)
@@ -108,7 +103,8 @@ public class GameEngine {
         System.out.println("Cleared all sprites.");
     }
 
-    // all sprites + seafloor handles — used for rendering and hit-testing
+
+    //helper methods for the editor and game
     public List<Sprite> getSprites() {
         List<Sprite> all = new ArrayList<>(sprites);
         all.addAll(seafloorPoints);
@@ -118,8 +114,8 @@ public class GameEngine {
     // only the saved rock sprites — used for serialization
     public List<Sprite> getRocks() { return sprites; }
 
-    // ── Camera ───────────────────────────────────────────────────────────────────
 
+    
     public void panCamera(float dx, float dy) {
         cameraX += dx;
         cameraY += dy;
@@ -133,8 +129,7 @@ public class GameEngine {
     public float getCameraX() { return cameraX; }
     public float getCameraY() { return cameraY; }
 
-    // ── Coordinate conversions ───────────────────────────────────────────────────
-
+    // conversion between screen and world coordinates used for rendering
     public float screenToWorldX(double sx) { return (float) sx + cameraX; }
     public float screenToWorldY(double sy) { return (float) sy + cameraY; }
     public double worldToScreenX(float wx) { return wx - cameraX; }

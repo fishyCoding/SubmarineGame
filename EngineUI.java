@@ -1,16 +1,17 @@
 public class EngineUI {
 
     GameEngine engine;
-    int        WIDTH;
-    int        HEIGHT;
+    int  WIDTH;
+    int  HEIGHT;
     public EngineUI(GameEngine engine, int width, int height) {
         this.engine = engine;
-        this.WIDTH  = width;
         this.HEIGHT = height;
+        this.WIDTH = width;
     }
 
     public void drawUI(Rock currentRock, int currentDepth, float METERS_PER_PIXEL) {
 
+        //draw mouse pos and depth
         StdDraw.setPenColor(255, 255, 255);
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 14));
         float wx = worldMouseX(), wy = worldMouseY();
