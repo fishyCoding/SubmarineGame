@@ -1,3 +1,5 @@
+import java.awt.Color;
+
 public class Submarine extends Character {
 
     final private int maxHealth;
@@ -168,7 +170,6 @@ public class Submarine extends Character {
         rudderAngle = 0;
     }
 
-    // ── Rendering ────────────────────────────────────────────────────────────────
 
     public void drawCentred(double cx, double cy) {
         if (!alive) { drawWreck(cx, cy); return; }
@@ -239,7 +240,6 @@ public class Submarine extends Character {
         drawCentred(engine.worldToScreenX(x), engine.worldToScreenY(y));
     }
 
-    // Called from Game.java once per frame while dead. Draws fullscreen overlay.
     public void drawDeathScreen(int W, int H) {
         StdDraw.setPenColor(new java.awt.Color(0, 0, 0, 160));
         StdDraw.filledRectangle(W / 2.0, H / 2.0, W / 2.0, H / 2.0);
@@ -252,10 +252,8 @@ public class Submarine extends Character {
 
         int titleSize = Math.max(14, H / 8);
         StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, titleSize));
-        StdDraw.setPenColor(new java.awt.Color(80, 0, 0, 200));
+        StdDraw.setPenColor(Color.decode("#00FF50"));
         StdDraw.text(cx + 2, cy + H * 0.22 + 2, "SUBMARINE DESTROYED");
-        StdDraw.setPenColor(new java.awt.Color(220, 50, 50));
-        StdDraw.text(cx, cy + H * 0.22, "SUBMARINE DESTROYED");
 
         if (!respawnReady) {
             StdDraw.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, Math.max(10, H / 14)));
@@ -267,7 +265,7 @@ public class Submarine extends Character {
             double progress = Math.min(1.0, (double) elapsed / DEATH_PAUSE_MS);
             StdDraw.setPenColor(new java.awt.Color(60, 60, 60));
             StdDraw.filledRectangle(cx, barCY, barW / 2, barH / 2);
-            StdDraw.setPenColor(new java.awt.Color(200, 60, 60));
+            StdDraw.setPenColor(Color.decode("#00FF50"));
             double fillW = barW * progress;
             StdDraw.filledRectangle(cx - barW / 2 + fillW / 2, barCY, fillW / 2, barH / 2);
 

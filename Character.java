@@ -18,10 +18,12 @@ public abstract class Character extends Sprite {
         this.angle = 0;
     }
 
-    //add velocity to position
     public void update() {
         x += vx;
-        y += vy;
+        y += vy;        
+        if(y>0){
+            y=0;
+        }
     }
     
     public void applyDrag(float dragCoefficient) {

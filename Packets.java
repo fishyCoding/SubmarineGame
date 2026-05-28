@@ -2,23 +2,20 @@ public class Packets {
 
     // sent by client on connect
     public static class JoinRequest {
-        public String playerId; // chosen display name
+        public String playerId; 
     }
 
-    // server confirms join and assigns a session ID
     public static class JoinResponse {
-        public String assignedId; // ie "player_3"
+        public String assignedId; 
         public float spawnX;
         public float spawnY;
     }
 
-    // sent by server when any player leaves
     public static class PlayerLeft {
         public String playerId;
     }
 
 
-    //packet classes for every type of data that gets sent
     public static class SubmarineState {
         public String playerId;
         public float x;
@@ -35,7 +32,7 @@ public class Packets {
         public float x;
         public float y;
         public float strength;
-        public String type; // ie radar background
+        public String type; 
     }
 
     public static class RadarPing {

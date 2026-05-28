@@ -17,7 +17,7 @@ public class Water {
 
         for (int i = 0; i < strips; i++) {
             // StdDraw Y: 0 at bottom, HEIGHT at top.
-            // We iterate from top to bottom in screen space.
+            //  iterate from top to bottom in screen space.
             double screenY1 = HEIGHT - i       * (HEIGHT / (double) strips);
             double screenY2 = HEIGHT - (i + 1) * (HEIGHT / (double) strips);
             double worldY   = screenY1 + engine.getCameraY();

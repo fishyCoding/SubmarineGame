@@ -50,6 +50,7 @@ public class GameEngine {
         switch (parts[0]) {
             case "POLYGON":
             case "ROCK":
+                return Rock.deserialize(line);
             default: return null;
         }
     }

@@ -67,9 +67,15 @@ public class Rock extends Sprite {
 
     @Override
     public boolean contains(float px, float py) {
-        if (this.vertices.size() < 6) return false;
-        int count = this.vertices.size() / 2;
+        if (this.vertices.size() < 6){
+             return false;
+        }
+        //total points
+        int count = this.vertices.size()/2;
+
         boolean inside = false;
+
+        //loop through each edge 
         for (int i = 0, j = count - 1; i < count; j = i++) {
             float xi = this.vertices.get(i * 2) + this.getX(), yi = this.vertices.get(i * 2 + 1) + this.getY();
             float xj = this.vertices.get(j * 2) + this.getX(), yj = this.vertices.get(j * 2 + 1) + this.getY();
