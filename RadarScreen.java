@@ -58,7 +58,7 @@ public class RadarScreen {
 
         double radarScale = (double) RADIUS / WORLD_RADIUS;
 
-        // blast radius reference ring
+        // blast radius ref
         StdDraw.setPenColor(COL_GRID);
         StdDraw.circle(cx, cy, radarScale * BLAST_RADIUS);
 
@@ -66,7 +66,7 @@ public class RadarScreen {
         if (bottomLayer != null)
             drawSeafloorMinimap(bottomLayer, playerX, playerY, cx, cy, radarScale);
 
-        // sweep line — only visible when a ping is fresh
+        // sweep 
         if (pingAlpha > 0f) {
             double sweepAngle = pingAlpha * Math.PI * 2.0;
             double ex = cx + Math.cos(-sweepAngle) * RADIUS;
@@ -234,12 +234,12 @@ public class RadarScreen {
                 double ang = Math.atan2(sdy, sdx);
                 double size = 1.0;
                 double[] trx = {
-                    tx + Math.cos(ang)       * size * 2,
+                    tx + Math.cos(ang) * size * 2,
                     tx + Math.cos(ang + 2.4) * size,
                     tx + Math.cos(ang - 2.4) * size
                 };
                 double[] try_ = {
-                    ty + Math.sin(ang)       * size * 2,
+                    ty + Math.sin(ang) * size * 2,
                     ty + Math.sin(ang + 2.4) * size,
                     ty + Math.sin(ang - 2.4) * size
                 };
@@ -260,7 +260,7 @@ public class RadarScreen {
         StdDraw.setPenRadius(0.002);
     }
 
-    // ── Minimap helpers ──────────────────────────────────────────────────────────
+    //minimap helpers
 
     private static void drawRockMinimap(List<Rock> rocks, float playerX, float playerY, double cx, double cy, double scale) {
         if (rocks == null) return;
@@ -308,10 +308,7 @@ public class RadarScreen {
         StdDraw.setPenRadius(0.002);
     }
 
-    private static void drawClippedSegment(double cx, double cy,
-                                           double rax, double ray,
-                                           double rbx, double rby,
-                                           double r) {
+    private static void drawClippedSegment(double cx, double cy, double rax, double ray, double rbx, double rby, double r) {
         double r2 = r * r;
         boolean aIn = rax * rax + ray * ray <= r2;
         boolean bIn = rbx * rbx + rby * rby <= r2;
@@ -346,8 +343,7 @@ public class RadarScreen {
         double tEnd = Math.min(1.0, Math.max(t0, t1));
         if (tStart > tEnd) return;
 
-        StdDraw.line(cx + rax + tStart * dx, cy + ray + tStart * dy,
-                     cx + rax + tEnd   * dx, cy + ray + tEnd   * dy);
+        StdDraw.line(cx + rax + tStart * dx, cy + ray + tStart * dy, cx + rax + tEnd   * dx, cy + ray + tEnd   * dy);
     }
 
     public static boolean hasLineOfSight(float x1, float y1, float x2, float y2, List<Rock> rocks) {

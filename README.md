@@ -6,6 +6,8 @@ This project is a 2d submarine warfare game that I have created. It is a multipl
 
 Executing the project:
 
+To compile, use javac -cp ".:kryonet-2.21-all.jar" *.java
+
 There are two main codes to run. 
 
 First, to run the game engine (world editor), run java Main . This gives the user the ability to edit their world.
@@ -36,7 +38,7 @@ The collision isnt great, it decides if the center of the object is inside the b
 Very relient on client side, if a hacker were to manipulate the client side, it would be very easy to cheat
 
 Help:
-https://github.com/EsotericSoftware/kryonet/blob/master/README.md(Instructions for the kryonet)
+https://github.com/EsotericSoftware/kryonet/blob/master/README.md (Instructions for the kryonet)
 
 https://en.wikipedia.org/wiki/Point_in_polygon
 For collision algorithm
