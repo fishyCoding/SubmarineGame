@@ -21,10 +21,10 @@ public class PassiveSonar {
     private static final Color SONAR_GLOW = new Color(0, 255, 110, 30);
 
     public static void draw(float px, float py, List<Sound> sounds, long tick) {
-        double[] raw      = new double[RESOLUTION];
+        double[] raw = new double[RESOLUTION];
         double[] smoothed = new double[RESOLUTION];
-        double[] xPoints  = new double[RESOLUTION];
-        double[] yPoints  = new double[RESOLUTION];
+        double[] xPoints = new double[RESOLUTION];
+        double[] yPoints = new double[RESOLUTION];
 
         //omni for players own pings
         double omniSurge = 0;
@@ -36,17 +36,17 @@ public class PassiveSonar {
         }
         omniSurge = Math.min(omniSurge, 1.2); //cap
 
-        for (int i = 0; i < RESOLUTION; i++) {
+        for (int i=0;i<RESOLUTION;i++) {
             double angle = (i * 2.0 * Math.PI) / RESOLUTION;
 
             //organic noise floor
             double noiseAmt = 0.018 + omniSurge * 0.35;
 
 
-            double n1 = Math.sin(angle * 7.30  + tick * 0.006)  * 0.50;
-            double n2 = Math.sin(angle * 14.97 - tick * 0.009)  * 0.30;
-            double n3 = Math.sin(angle * 23.53 + tick * 0.014)  * 0.15;
-            double n4 = Math.sin(angle * 3.17  - tick * 0.003)  * 0.20;
+            double n1 = Math.sin(angle * 7.30  +tick *0.006)*0.50;
+            double n2 = Math.sin(angle *14.97 - tick*0.009)  *0.30;
+            double n3 = Math.sin(angle *23.53 +tick *0.014)*0.15;
+            double n4 = Math.sin(angle* 3.17- tick *0.003)* 0.20;
             double noise = (n1 + n2 + n3 + n4) * noiseAmt;
 
             // Pulse
@@ -87,10 +87,10 @@ public class PassiveSonar {
 
         // Gaussian blur
 
-        System.arraycopy(raw, 0, smoothed, 0, RESOLUTION);
+        System.arraycopy(raw,0,smoothed,0,RESOLUTION);
         double[] tmp = new double[RESOLUTION];
-        for (int pass = 0; pass < SMOOTH_PASSES; pass++) {
-            for (int i = 0; i < RESOLUTION; i++) {
+        for (int pass=0;pass<SMOOTH_PASSES;pass++) {
+            for (int i=0;i<RESOLUTION;i++) {
                 int m2 = (i - 2 + RESOLUTION) % RESOLUTION;
                 int m1 = (i - 1 + RESOLUTION) % RESOLUTION;
                 int p1 = (i + 1) % RESOLUTION;
@@ -99,10 +99,10 @@ public class PassiveSonar {
                         + smoothed[i] * 4.0
                         + smoothed[p1] * 2.0 + smoothed[p2]) / 10.0;
             }
-            System.arraycopy(tmp, 0, smoothed, 0, RESOLUTION);
+            System.arraycopy(tmp,0,smoothed,0,RESOLUTION);
         }
 
-        for (int i = 0; i < RESOLUTION; i++) {
+        for (int i=0;i<RESOLUTION;i++) {
             double angle = (i * 2.0 * Math.PI) / RESOLUTION;
             double r = BASE_RADIUS + smoothed[i] * MAX_STRETCH;
             xPoints[i] = CENTER_X + Math.cos(angle) * r;
@@ -118,7 +118,7 @@ public class PassiveSonar {
         // Glow
         double[] gxPoints = new double[RESOLUTION];
         double[] gyPoints = new double[RESOLUTION];
-        for (int i = 0; i < RESOLUTION; i++) {
+        for (int i=0;i<RESOLUTION;i++) {
             double angle = (i * 2.0 * Math.PI) / RESOLUTION;
             double r = BASE_RADIUS + smoothed[i] * MAX_STRETCH + 2.5;
             gxPoints[i] = CENTER_X + Math.cos(angle) * r;
@@ -134,7 +134,7 @@ public class PassiveSonar {
 
         StdDraw.setPenColor(SONAR_GREEN_DIM);
         StdDraw.setPenRadius(0.001);
-        StdDraw.circle(CENTER_X, CENTER_Y, BASE_RADIUS);
+        StdDraw.circle(CENTER_X, CENTER_Y,BASE_RADIUS);
 
         StdDraw.setPenColor(SONAR_GREEN);
         StdDraw.filledCircle(CENTER_X, CENTER_Y, 2);

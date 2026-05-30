@@ -24,7 +24,7 @@ public class Rock extends Sprite {
     public float[] getBounds() {
         float minX = Float.MAX_VALUE, maxX = Float.MIN_VALUE;
         float minY = Float.MAX_VALUE, maxY = Float.MIN_VALUE;
-        for (int i = 0; i < vertices.size(); i += 2) {
+        for(int i=0; i<vertices.size();i+=2) {
             float vx = vertices.get(i) + getX();
             float vy = vertices.get(i + 1) + getY();
             minX = Math.min(minX, vx);
@@ -42,7 +42,7 @@ public class Rock extends Sprite {
     }
 
     public void removeLastVertex() {
-        if (this.vertices.size() >= 4) {
+        if(this.vertices.size() >= 4) {
             this.vertices.remove(this.vertices.size() - 1);
             this.vertices.remove(this.vertices.size() - 1);
         }
@@ -67,30 +67,32 @@ public class Rock extends Sprite {
 
     @Override
     public boolean contains(float px, float py) {
-        if (this.vertices.size() < 6){
+        if(this.vertices.size()<6){
              return false;
         }
         int count = this.vertices.size()/2;
 
-        boolean inside = false;
+        boolean inside =false;
 
-        for (int i = 0, j = count - 1; i < count; j = i++) {
+        for(int i=0, j=count-1; i<count; j=i++) {
             float xi = this.vertices.get(i*2) + this.getX();
-            float yi= this.vertices.get(i*2+1) + this.getY();
+            float yi = this.vertices.get(i*2+1) + this.getY();
             float xj = this.vertices.get(j*2) + this.getX();
-            float yj = this.vertices.get(j*2+1) +this.getY();
-            if ((yi > py) != (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi)
+            float yj = this.vertices.get(j*2+1) + this.getY();
+            float xint=(xj-xi)*(py-yi)/(yj-yi)+xi;
+            if((yi>py) != (yj>py) && px < xint){
                 inside = !inside;
+            }
         }
         return inside;
     }
 
     @Override
     public void draw(GameEngine engine) {
-        // vertices are stored as offsets from the rock's x,y position
+        // vertices are stored as offsets from the rock's xy position
         double[] screenXs = new double[this.vertices.size() / 2];
         double[] screenYs = new double[this.vertices.size() / 2];
-        for (int i = 0; i < this.vertices.size(); i += 2) {
+        for(int i=0; i<this.vertices.size(); i+=2) {
             int idx = i / 2;
             screenXs[idx] = engine.worldToScreenX(this.vertices.get(i) + this.getX());
             screenYs[idx] = engine.worldToScreenY(this.vertices.get(i + 1) + this.getY());
@@ -103,7 +105,7 @@ public class Rock extends Sprite {
         Color shadowColor = this.depth == 0 ? BG_SHADOW : FG_SHADOW;
         StdDraw.setPenColor(shadowColor);
         StdDraw.setPenRadius(OUTLINE_WIDTH);
-        for (int i = 0; i < screenXs.length; i++) {
+        for(int i=0; i<screenXs.length; i++) {
             int next = (i + 1) % screenXs.length;
             StdDraw.line(screenXs[i], screenYs[i], screenXs[next], screenYs[next]);
         }
@@ -118,7 +120,7 @@ public class Rock extends Sprite {
           .append(getY()).append(" ")
           .append(depth).append(" ")
           .append(this.vertices.size() / 2);
-        for (Float v : this.vertices)
+        for(Float v : this.vertices)
             sb.append(" ").append(String.format("%.1f", v));
         return sb.toString();
     }
@@ -126,24 +128,23 @@ public class Rock extends Sprite {
     public static Rock deserialize(String line) {
         try {
             String[] parts = line.trim().split("\\s+");
-            if (parts.length < 5) return null;
+            if(parts.length < 5) return null;
 
             int i = 0;
-            if (parts[i].equalsIgnoreCase("ROCK")) i++;
+            if(parts[i].equalsIgnoreCase("ROCK")) i++;
 
             float x = Float.parseFloat(parts[i++]);
             float y = Float.parseFloat(parts[i++]);
             int depth = Integer.parseInt(parts[i++]);
             int vertexCount = Integer.parseInt(parts[i++]);
 
-            if (parts.length < i + (vertexCount * 2)) return null;
+            if(parts.length < i + (vertexCount * 2)) return null;
 
             Rock rock = new Rock(x, y, depth);
             rock.vertices.clear();
-            for (int v = 0; v < vertexCount * 2; v++)
+            for(int v=0; v<vertexCount*2; v++)
                 rock.vertices.add(Float.parseFloat(parts[i++]));
 
-            // skip trailing RGB values if present in old save files — color is hardcoded per depth
             return rock;
         } catch (Exception e) {
             return null;

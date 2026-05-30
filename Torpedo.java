@@ -15,10 +15,10 @@ public class Torpedo extends Character {
     private static final int DAMAGE = 100;
 
     public static int getDamage(float dist){
-        if (dist>BLAST_RADIUS){
+        if(dist>BLAST_RADIUS){
              return 0;
         }
-        else if (dist<KILL_BLAST_RADIUS){
+        else if(dist<KILL_BLAST_RADIUS){
          return DAMAGE;
         }
         else{
@@ -45,18 +45,18 @@ public class Torpedo extends Character {
 
     // Steer toward the angle from screen center to mouse, then move.
     public void update(double mouseScreenX, double mouseScreenY, double screenCX, double screenCY) {
-        if (!alive) return;
+        if(!alive) return;
 
-        if (speed < MAXSPEED) speed = Math.min(speed + ACCELERATION, MAXSPEED);
+        if(speed < MAXSPEED) speed = Math.min(speed + ACCELERATION, MAXSPEED);
 
         // angle from screen center to mouse
         double targetAngle = Math.toDegrees(Math.atan2(mouseScreenY - screenCY, mouseScreenX - screenCX));
 
         double delta = targetAngle - angle;
-        while (delta > 180) delta -= 360;
-        while (delta < -180) delta += 360;
-        if (delta > TURN_RATE) delta = TURN_RATE;
-        if (delta < -TURN_RATE) delta = -TURN_RATE;
+        while(delta > 180) delta -= 360;
+        while(delta < -180) delta += 360;
+        if(delta > TURN_RATE) delta = TURN_RATE;
+        if(delta < -TURN_RATE) delta = -TURN_RATE;
 
         angle += (float) delta;
         angle = angle % 360;
@@ -86,7 +86,7 @@ public class Torpedo extends Character {
 
     @Override
     public void draw(GameEngine engine) {
-        if (!alive) return;
+        if(!alive) return;
         double sx = engine.worldToScreenX(x);
         double sy = engine.worldToScreenY(y);
 
@@ -97,7 +97,7 @@ public class Torpedo extends Character {
         int SEG = 12;
         double[] bx = new double[SEG];
         double[] by = new double[SEG];
-        for (int i = 0; i < SEG; i++) {
+        for(int i=0; i<SEG; i++) {
             double t = 2 * Math.PI * i / SEG;
             double lx = Math.cos(t) * 10;
             double ly = Math.sin(t) * 3;

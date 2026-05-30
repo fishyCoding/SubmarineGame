@@ -293,16 +293,13 @@ public class Submarine extends Character {
             StdDraw.text(cx, cy - H * 0.05, "click anywhere to respawn");
         }
     }
-        /**
-     * Synchronizes health from the network. 
-     * If health is 0, it triggers the 'alive' status change.
-     */
+  
     public void syncHealth(int newHealth) {
         this.health = newHealth;
         if (this.health <= 0 && this.alive) {
-            this.alive = false; // Player just died
+            this.alive = false;
         } else if (this.health > 0 && !this.alive) {
-            this.alive = true;  // Player just respawned
+            this.alive = true;
         }
     }
 

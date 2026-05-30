@@ -24,7 +24,7 @@ public class Game {
     private static final long PING_DURATION_MS = 2500;
     private static long pingStartMs = -1;
     private static final float PING_SOUND_STRENGTH = 10000f;
-    private static RadarScreen rscreen= new RadarScreen();
+    private static RadarScreen rscreen = new RadarScreen();
 
     // contacts the radar has detected
     private static final java.util.Map<String, float[]> radarContacts = new java.util.concurrent.ConcurrentHashMap<>();
@@ -72,11 +72,11 @@ public class Game {
     }
 
     private static void parseArgs(String[] args) {
-        for (String a : args) {
-            if (a.equals("--host")) {
+        for(String a : args) {
+            if(a.equals("--host")) {
                 multiplayer = true;
                 gameMode = "--host";
-            } else if (a.equals("--join")) {
+            } else if(a.equals("--join")) {
                 multiplayer = true;
                 gameMode = "--join";
             }
@@ -85,19 +85,19 @@ public class Game {
 
 
     private static void setupNetwork(String[] args) {
-        if (!multiplayer) return;
+        if(!multiplayer) return;
 
         String mode = args.length > 0 ? args[0] : "--solo";
 
         try {
-            if (mode.equals("--host")) {
+            if(mode.equals("--host")) {
                 netServer = new NetworkServer();
                 netServer.start();
                 System.out.println("Hosting — server started.");
                 Thread.sleep(300);
                 netClient = new NetworkClient("localhost", "Host");
                 netClient.connect();
-            } else if (mode.equals("--join") && args.length > 1) {
+            } else if(mode.equals("--join") && args.length > 1) {
                 String ip = args[1];
                 netClient = new NetworkClient(ip, "Player");
                 netClient.connect();
@@ -106,7 +106,7 @@ public class Game {
                 System.out.println("Unknown mode — running solo.");
                 multiplayer = false;
             }
-        } catch (Exception e) {
+        } catch(Exception e) {
             System.err.println("Fail " + e.getMessage());
             System.err.println("Running w/o network");
             multiplayer = false;
@@ -123,13 +123,13 @@ public class Game {
 
         // show IP on title so u can share it with friends
         String title;
-        if (!multiplayer) {
+        if(!multiplayer) {
             title = "Solo";
-        } else if (gameMode.equals("--host")) {
+        } else if(gameMode.equals("--host")) {
             try {
                 String localIp = java.net.InetAddress.getLocalHost().getHostAddress();
                 title = "Hosting — " + localIp;
-            } catch (Exception e) {
+            } catch(Exception e) {
                 title = "Hosting";
             }
         } else {
@@ -155,7 +155,7 @@ public class Game {
     }
 
     private static void gameLoop() {
-        while (true) {
+        while(true) {
             handleInput();
             updateSounds();
             drainNetwork();
@@ -170,41 +170,41 @@ public class Game {
     }
 
     private static void drainNetwork() {
-        if (multiplayer && netClient != null && netClient.isConnected()) {
-            if (tick % 12 == 0) netClient.sendState(player);
+        if(multiplayer && netClient != null && netClient.isConnected()) {
+            if(tick % 12 == 0) netClient.sendState(player);
 
-            if (tick % 12 == 0) {
+            if(tick % 12 == 0) {
                 netClient.sendSoundEvent(player.getX(), player.getY(),
                         engineSound.getStrength(), "engine");
             }
 
             // torpedo replication
-            if (torpedoSystem.hasTorpedo()) {
+            if(torpedoSystem.hasTorpedo()) {
                 Torpedo t = torpedoSystem.getTorpedo();
                 netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), true);
-            } else if (torpedoSystem.getTorpedo() != null && torpedoSystem.getTorpedo().hasExploded()) {
-    Torpedo t = torpedoSystem.getTorpedo();
-    netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), false);
-    netClient.sendTorpedoDetonate(t.getX(), t.getY(), t.getBlastRadius(), t.getDamage());
+            } else if(torpedoSystem.getTorpedo() != null && torpedoSystem.getTorpedo().hasExploded()) {
+                    Torpedo t = torpedoSystem.getTorpedo();
+                    netClient.sendTorpedoState(t.getX(), t.getY(), t.getAngle(), false);
+                    netClient.sendTorpedoDetonate(t.getX(), t.getY(), t.getBlastRadius(), t.getDamage());
 
-    float _dx = t.getX() - player.getX();
-    float _dy = t.getY() - player.getY();
-    float _distSq = _dx * _dx + _dy * _dy;
-    String torpSoundOwner = (_distSq < 400f * 400f) ? "player_ping" : "remote_ping";
-    sounds.add(new TorpedoSound(t.getX(), t.getY(), torpSoundOwner));
-    
-    if (multiplayer && netClient != null) {
-        netClient.sendSoundEvent(t.getX(), t.getY(), 25000f, "torpedo_explosion");
-    }
+                    float _dx = t.getX() - player.getX();
+                    float _dy = t.getY() - player.getY();
+                    float _distSq = _dx * _dx + _dy * _dy;
+                    String torpSoundOwner = (_distSq < 400f * 400f) ? "player_ping" : "remote_ping";
+                    sounds.add(new TorpedoSound(t.getX(), t.getY(), torpSoundOwner));
+                    
+                    if(multiplayer && netClient != null) {
+                        netClient.sendSoundEvent(t.getX(), t.getY(), 25000f, "torpedo_explosion");
+                    }
 
-    torpedoSystem.resetTorpedo();
-}
+                    torpedoSystem.resetTorpedo();
+                }
 
             // drain remote detonations — apply damage to local player
-            for (Packets.TorpedoDetonate d : netClient.drainDetonations()) {
+            for(Packets.TorpedoDetonate d : netClient.drainDetonations()) {
                 float dx = player.getX() - d.x;
                 float dy = player.getY() - d.y;
-                if (dx * dx + dy * dy <= d.blastRadius * d.blastRadius) {
+                if(dx * dx + dy * dy <= d.blastRadius * d.blastRadius) {
                     int currentDamage = Torpedo.getDamage((float) Math.sqrt(dx * dx + dy * dy));
                     player.takeDamage(currentDamage);
                 }
@@ -215,15 +215,15 @@ public class Game {
             // The dispatch happens inside NetworkClient.buildSound().
             netClient.drainSounds(sounds);
 
-            for (Packets.RadarPing ping : netClient.drainPings()) {
+            for(Packets.RadarPing ping : netClient.drainPings()) {
                 sounds.add(new RadarSound(ping.x, ping.y, PING_SOUND_STRENGTH, ping.playerId));
             }
         }
 
-        if (torpedoSystem.hasTorpedo()) {
+        if(torpedoSystem.hasTorpedo()) {
             List<Rock> fgRocks = new ArrayList<>();
-            for (Sprite s : engine.getSprites())
-                if (s instanceof Rock && ((Rock) s).getDepth() == 1)
+            for(Sprite s : engine.getSprites())
+                if(s instanceof Rock && ((Rock) s).getDepth() == 1)
                     fgRocks.add((Rock) s);
 
             Map<String, Submarine> remotes = (multiplayer && netClient != null)
@@ -236,13 +236,13 @@ public class Game {
     }
 
     private static void checkCollisions() {
-        if (!player.isAlive()) return;
+        if(!player.isAlive()) return;
 
-        for (Sprite s : engine.getSprites()) {
-            if (!(s instanceof Rock)) continue;
+        for(Sprite s : engine.getSprites()) {
+            if(!(s instanceof Rock)) continue;
             Rock rock = (Rock) s;
-            if (rock.getDepth() != 1) continue;
-            if (player.collidesWithRock(rock)) {
+            if(rock.getDepth() != 1) continue;
+            if(player.collidesWithRock(rock)) {
                 System.out.println("Hit a rock!");
                 player.takeDamage(player.getHealth());
                 return;
@@ -250,7 +250,7 @@ public class Game {
         }
 
         float floorY = bottomLayer.getFloorYAt(player.getX());
-        if (player.getY() <= floorY + player.getCollisionRadius()) {
+        if(player.getY() <= floorY + player.getCollisionRadius()) {
             System.out.println("Hit the seafloor!");
             player.takeDamage(player.getHealth());
         }
@@ -265,9 +265,9 @@ public class Game {
     }
 
     private static void handleInput() {
-        if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
-            if (netClient != null) netClient.disconnect();
-            if (netServer != null) netServer.stop();
+        if(StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
+            if(netClient != null) netClient.disconnect();
+            if(netServer != null) netServer.stop();
             System.out.println("Goodbye.");
             System.exit(0);
         }
@@ -278,42 +278,40 @@ public class Game {
         if(plusDown && !plusWasDown){
             rscreen.plus();
         }
-        plusWasDown=plusDown;
+        plusWasDown = plusDown;
         
         boolean minusDown = StdDraw.isKeyPressed('-') || StdDraw.isKeyPressed('_');
         if(minusDown && !minusWasDown){
             rscreen.minus();
         }
-        minusWasDown=minusDown;
-
+        minusWasDown = minusDown;
 
 
         boolean rDown = StdDraw.isKeyPressed('R') || StdDraw.isKeyPressed('r');
-        if (rDown && !rWasDown && pingAlpha() == 0) {
+        if(rDown && !rWasDown && pingAlpha() == 0) {
             pingStartMs = System.currentTimeMillis();
             sounds.add(new RadarSound(player.getX(), player.getY(),
                     PING_SOUND_STRENGTH, "player_ping"));
 
             updateRadarContacts();
 
-            if (!torpedoSystem.hasTorpedo()) {
+            if(!torpedoSystem.hasTorpedo()) {
                 contactIds.clear();
                 contactPos.clear();
-                
-                // ONLY gather Depth 1 rocks to match RadarScreen.java
+
+                //only depth 1 rocks
                 List<Rock> fgRocks = new ArrayList<>();
-                for (Sprite s : engine.getSprites()) {
-                    if (s instanceof Rock && ((Rock) s).getDepth() == 1) {
+                for(Sprite s : engine.getSprites()) {
+                    if(s instanceof Rock && ((Rock) s).getDepth() == 1) {
                         fgRocks.add((Rock) s);
                     }
                 }
 
-                for (Map.Entry<String, float[]> entry : radarContacts.entrySet()) {
+                for(Map.Entry<String, float[]> entry : radarContacts.entrySet()) {
                     String id = entry.getKey();
                     float[] pos = entry.getValue();
                     
-                    // LOS check now uses the exact same rocks as the Radar
-                    if (RadarScreen.hasLineOfSight(player.getX(), player.getY(), pos[0], pos[1], fgRocks)) {
+                    if(RadarScreen.hasLineOfSight(player.getX(), player.getY(), pos[0], pos[1], fgRocks)) {
                         contactIds.add(id);
                         contactPos.put(id, pos);
                     }
@@ -321,7 +319,7 @@ public class Game {
                 selectedIdx = -1;
             }
 
-            if (multiplayer && netClient != null) {
+            if(multiplayer && netClient != null) {
                 netClient.sendRadarPing(player.getX(), player.getY());
                 netClient.sendSoundEvent(player.getX(), player.getY(),
                         PING_SOUND_STRENGTH, "radar");
@@ -329,20 +327,18 @@ public class Game {
         }
         rWasDown = rDown;
 
-        // number keys — target selection
-        for (int i = 0; i < contactIds.size() && i < 9; i++) {
-            if (StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_1 + i))
+        for(int i=0; i<contactIds.size() && i<9; i++) {
+            if(StdDraw.isKeyPressed(java.awt.event.KeyEvent.VK_1 + i))
                 selectedIdx = i;
         }
 
-        // mouse click — respawn / launch / detonate
         boolean mouseDown = StdDraw.isMousePressed();
-        if (mouseDown && !mouseWasDown) {
-            if (!player.isAlive()) {
+        if(mouseDown && !mouseWasDown) {
+            if(!player.isAlive()) {
                 player.handleRespawnClick();
-                if (player.isAlive())
+                if(player.isAlive())
                     engine.setCamera(player.getX() - (float) CX, player.getY() - (float) CY);
-            } else if (!torpedoSystem.hasTorpedo()) {
+            } else if(!torpedoSystem.hasTorpedo()) {
                 torpedoSystem.launchTorpedo(player.getX(), player.getY(), player.getAngle());
             } else {
                 Map<String, Submarine> remotes = (multiplayer && netClient != null)
@@ -353,8 +349,7 @@ public class Game {
         }
         mouseWasDown = mouseDown;
 
-        // clear contact list once torpedo is gone
-        if (!torpedoSystem.hasTorpedo() && torpedoSystem.getTorpedo() != null
+        if(!torpedoSystem.hasTorpedo() && torpedoSystem.getTorpedo() != null
                 && torpedoSystem.getTorpedo().hasExploded()) {
             contactIds.clear();
             contactPos.clear();
@@ -362,7 +357,7 @@ public class Game {
         }
 
         // clear contacts once radar fades and no torpedo in flight
-        if (pingAlpha() == 0f && !torpedoSystem.hasTorpedo() && !contactIds.isEmpty()) {
+        if(pingAlpha() == 0f && !torpedoSystem.hasTorpedo() && !contactIds.isEmpty()) {
             contactIds.clear();
             contactPos.clear();
             selectedIdx = -1;
@@ -371,17 +366,17 @@ public class Game {
 
     private static void updateRadarContacts() {
         radarContacts.clear();
-        if (netClient == null) return;
-        for (Map.Entry<String, Submarine> e : netClient.getRemoteSubs().entrySet()) {
+        if(netClient == null) return;
+        for(Map.Entry<String, Submarine> e : netClient.getRemoteSubs().entrySet()) {
             Submarine sub = e.getValue();
             radarContacts.put(e.getKey(), new float[]{sub.getX(), sub.getY()});
         }
     }
 
     private static void updateSounds() {
-        for (Sound s : sounds) s.tick();
+        for(Sound s : sounds) s.tick();
         Sound.pruneDead(sounds);
-        if (!sounds.contains(engineSound)) sounds.add(engineSound);
+        if(!sounds.contains(engineSound)) sounds.add(engineSound);
     }
 
     // Render (once every tick)
@@ -390,22 +385,22 @@ public class Game {
         water.drawWaterGradient();
 
         //rock draw
-        for (Sprite s : engine.getSprites())
-            if (s instanceof Rock && ((Rock) s).getDepth() == 0)
+        for(Sprite s : engine.getSprites())
+            if(s instanceof Rock && ((Rock) s).getDepth() == 0)
                 s.draw(engine);
 
-        for (Sprite s : engine.getSprites())
-            if (s instanceof Rock && ((Rock) s).getDepth() == 1)
+        for(Sprite s : engine.getSprites())
+            if(s instanceof Rock && ((Rock) s).getDepth() == 1)
                 s.draw(engine);
 
         // seafloor
         bottomLayer.draw(engine);
 
         //enemy subs and torpedos
-        if (multiplayer && netClient != null) {
-            for (Submarine remote : netClient.getRemoteSubs().values())
+        if(multiplayer && netClient != null) {
+            for(Submarine remote : netClient.getRemoteSubs().values())
                 remote.draw(engine);
-            for (Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values())
+            for(Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values())
                 new Torpedo(t.playerId, t.x, t.y, t.angle).draw(engine);
         }
         torpedoSystem.draw(engine);
@@ -415,7 +410,7 @@ public class Game {
         HUD.drawFog(HEIGHT, WIDTH, CX, CY);
 
         //sonar ping outlines go above the fog 
-        if (pingAlpha() > 0f)
+        if(pingAlpha() > 0f)
             drawRadarOutlines(pingAlpha());
 
         //player and HUD
@@ -427,8 +422,8 @@ public class Game {
 
 
         List<Rock> foregroundRocks = new ArrayList<>();
-        for (Sprite s : engine.getSprites())
-            if (s instanceof Rock && ((Rock) s).getDepth() == 1)
+        for(Sprite s : engine.getSprites())
+            if(s instanceof Rock && ((Rock) s).getDepth() == 1)
                 foregroundRocks.add((Rock) s);
 
         float[] torpedoPos = torpedoSystem.hasTorpedo()
@@ -436,8 +431,8 @@ public class Game {
                 : null;
 
         List<float[]> remoteTorpedoPositions = new ArrayList<>();
-        if (pingAlpha() > 0f && multiplayer && netClient != null) {
-            for (Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values())
+        if(pingAlpha() > 0f && multiplayer && netClient != null) {
+            for(Packets.TorpedoState t : netClient.getRemoteTorpedoStates().values())
                 remoteTorpedoPositions.add(new float[]{t.x, t.y});
         }
 
@@ -449,7 +444,7 @@ public class Game {
         List<Submarine> contactList = new ArrayList<>(netClient.getRemoteSubs().values());
 
         List<float[]> remoteTorpedoList = new ArrayList<>();
-        for (Packets.TorpedoState ts : netClient.getRemoteTorpedoStates().values()) {
+        for(Packets.TorpedoState ts : netClient.getRemoteTorpedoStates().values()) {
             remoteTorpedoList.add(new float[]{ts.x, ts.y});
         }
         rscreen.draw(
@@ -465,16 +460,16 @@ public class Game {
             contactDist
         );
 
-        if (!player.isAlive())
+        if(!player.isAlive())
             player.drawDeathScreen(WIDTH, HEIGHT);
     }
 
     // ── Radar ─────────────────────────────────────────────────────────────────────
 
     private static float pingAlpha() {
-        if (pingStartMs < 0) return 0f;
+        if(pingStartMs < 0) return 0f;
         long elapsed = System.currentTimeMillis() - pingStartMs;
-        if (elapsed >= PING_DURATION_MS) return 0f;
+        if(elapsed >= PING_DURATION_MS) return 0f;
         return 1f - (float) elapsed / PING_DURATION_MS;
     }
 
@@ -484,15 +479,15 @@ public class Game {
         StdDraw.setPenRadius(0.002);
     }
     private static void drawContactUI() {
-        if (contactIds.isEmpty()) return;
+        if(contactIds.isEmpty()) return;
 
         int rightX = WIDTH - 10;
         int startY = 410;
         int lineH = 14;
 
         List<Rock> currentRocks = new ArrayList<>();
-        for (Sprite s : engine.getSprites()) {
-            if (s instanceof Rock) {
+        for(Sprite s : engine.getSprites()) {
+            if(s instanceof Rock) {
                 currentRocks.add((Rock) s);
             }
         }
@@ -501,12 +496,12 @@ public class Game {
         StdDraw.setPenColor(new java.awt.Color(0, 180, 80));
         StdDraw.textRight(rightX, startY + lineH, "CONTACTS");
 
-        for (int i = 0; i < contactIds.size() && i < 9; i++) {
+        for(int i=0; i<contactIds.size() && i<9; i++) {
             String id = contactIds.get(i);
             
  
 
-            if (i == selectedIdx) {
+            if(i == selectedIdx) {
                 StdDraw.setPenColor(new java.awt.Color(255, 220, 80));
             } else {
                 StdDraw.setPenColor(new java.awt.Color(0, 160, 70));
@@ -522,19 +517,19 @@ public class Game {
         StdDraw.textRight(rightX, below,
                 torpedoSystem.hasTorpedo() ? "Click to detonate" : "Click to launch torpedo");
 
-        if (torpedoSystem.hasTorpedo() && selectedIdx >= 0 && selectedIdx < contactIds.size()) {
+        if(torpedoSystem.hasTorpedo() && selectedIdx >= 0 && selectedIdx < contactIds.size()) {
             String targetId = contactIds.get(selectedIdx);
             float liveX, liveY;
             Submarine liveSub = (netClient != null) ? netClient.getRemoteSubs().get(targetId) : null;
-            if (liveSub != null) {
+            if(liveSub != null) {
                 liveX = liveSub.getX();
                 liveY = liveSub.getY();
             } else {
                 float[] snapshot = contactPos.get(targetId);
-                if (snapshot != null) { liveX = snapshot[0]; liveY = snapshot[1]; }
+                if(snapshot != null) { liveX = snapshot[0]; liveY = snapshot[1]; }
                 else { liveX = liveY = 0; }
             }
-            if (liveSub != null || contactPos.containsKey(targetId)) {
+            if(liveSub != null || contactPos.containsKey(targetId)) {
                 Torpedo t = torpedoSystem.getTorpedo();
                 float dx = liveX - t.getX();
                 float dy = liveY - t.getY();

@@ -85,21 +85,15 @@ public class Menu {
         return null;
     }
 
-    /**
-     * Uses StdDraw's internal key queue to handle typing.
-     * This is much smoother than polling isKeyPressed manually.
-     */
+ 
     private static void handleTyping() {
         while (StdDraw.hasNextKeyTyped()) {
             char c = StdDraw.nextKeyTyped();
-
-            // Handle Backspace (char code 8)
             if (c == '\b' || c == 127) {
                 if (ipInput.length() > 0) {
                     ipInput.deleteCharAt(ipInput.length() - 1);
                 }
             } 
-            // Handle valid IP characters
             else if (isValidIpChar(c) && ipInput.length() < 40) {
                 ipInput.append(c);
             }
