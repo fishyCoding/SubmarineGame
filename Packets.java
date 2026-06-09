@@ -1,20 +1,35 @@
 public class Packets {
 
-    // sent by client on connect
+    // ── Client → Server ───────────────────────────────────────────────────────────
+
+    /** Sent by client on connect, requesting an ID and spawn point. */
     public static class JoinRequest {
-        public String playerId; 
+        public String playerId;
     }
 
+    // ── Server → Client ───────────────────────────────────────────────────────────
+
+    /** Server accepted the join — hands the client its assigned ID and spawn. */
     public static class JoinResponse {
-        public String assignedId; 
+        public String assignedId;
         public float spawnX;
         public float spawnY;
     }
 
+    /**
+     * Server rejected the join (e.g. lobby full).
+     * Client should show reason and return to the menu.
+     */
+    public static class JoinRejected {
+        public String reason;
+    }
+
+    /** Broadcast to remaining clients when a player disconnects. */
     public static class PlayerLeft {
         public String playerId;
     }
 
+    // ── Gameplay sync ─────────────────────────────────────────────────────────────
 
     public static class SubmarineState {
         public String playerId;
@@ -32,7 +47,7 @@ public class Packets {
         public float x;
         public float y;
         public float strength;
-        public String type; 
+        public String type;   // "radar", "engine", "torpedo_explosion", …
     }
 
     public static class RadarPing {

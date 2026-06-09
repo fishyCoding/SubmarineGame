@@ -6,9 +6,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-// Connects to NetworkServer and syncs game state.
-// Kryonet callbacks run on a background thread — shared state uses
-// ConcurrentHashMap / synchronized lists so the game loop can read safely.
+/**
+ * Connects to NetworkServer and syncs game state.
+ * Kryonet callbacks run on a background thread — shared state uses
+ * ConcurrentHashMap / synchronized lists so the game loop can read safely.
+ *
+ * Changes:
+ *  - Accepts optional playerName (used in JoinRequest so logs are readable).
+ *  - Handles Packets.JoinRejected — sets rejectionReason; caller should check.
+ */
 public class NetworkClient {
 
     private final Client client;
@@ -18,6 +24,9 @@ public class NetworkClient {
 
     // assigned by server on join
     private volatile String myId = null;
+
+    // set if the server rejected our join (e.g. full lobby)
+    private volatile String rejectionReason = null;
 
     // remote submarines keyed by player ID
     private final Map<String, Submarine> remoteSubs = new ConcurrentHashMap<>();
@@ -34,14 +43,16 @@ public class NetworkClient {
 
     private volatile boolean connected = false;
 
+    // ── Constructors ──────────────────────────────────────────────────────────────
+
     public NetworkClient(String host, String requestedName) {
         this.host = host;
-        this.requestedName = requestedName;
+        this.requestedName = requestedName != null ? requestedName : "Player";
         client = new Client(65536, 65536);
         NetworkServer.registerClasses(client.getKryo());
     }
 
-    // ── Lifecycle ────────────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
     public void connect() throws IOException {
         client.start();
@@ -62,36 +73,42 @@ public class NetworkClient {
     }
 
     public boolean isConnected() { return connected; }
-    public String getMyId() { return myId; }
+    public String  getMyId()     { return myId; }
 
-    // ── Sending ──────────────────────────────────────────────────────────────────
+    /**
+     * Non-null if the server sent a JoinRejected packet.
+     * Check this after connect(); if non-null the connection was closed by the server.
+     */
+    public String getRejectionReason() { return rejectionReason; }
 
-    // Send local player state via UDP. Call every few ticks.
+    // ── Sending ───────────────────────────────────────────────────────────────────
+
+    /** Send local player state via UDP. Call every few ticks. */
     public void sendState(Submarine player) {
         if (!connected || myId == null) return;
 
         Packets.SubmarineState state = new Packets.SubmarineState();
-        state.playerId = myId;
-        state.x = player.getX();
-        state.y = player.getY();
-        state.vx = player.getVx();
-        state.vy = player.getVy();
-        state.angle = player.getAngle();
+        state.playerId   = myId;
+        state.x          = player.getX();
+        state.y          = player.getY();
+        state.vx         = player.getVx();
+        state.vy         = player.getVy();
+        state.angle      = player.getAngle();
         state.rudderAngle = player.getRudderAngle();
-        state.health = player.getHealth();
+        state.health     = player.getHealth();
         client.sendUDP(state);
     }
 
-    // type: "radar", "engine", "torpedo_explosion", etc.
+    /** type: "radar", "engine", "torpedo_explosion", etc. */
     public void sendSoundEvent(float x, float y, float strength, String type) {
         if (!connected || myId == null) return;
 
         Packets.SoundEvent ev = new Packets.SoundEvent();
         ev.playerId = myId;
-        ev.x = x;
-        ev.y = y;
+        ev.x        = x;
+        ev.y        = y;
         ev.strength = strength;
-        ev.type = type;
+        ev.type     = type;
         client.sendTCP(ev);
     }
 
@@ -105,16 +122,16 @@ public class NetworkClient {
         client.sendTCP(ping);
     }
 
-    // set alive=false on last send (after explode()) so others remove it
+    /** set alive=false on last send (after explode()) so others remove it */
     public void sendTorpedoState(float x, float y, float angle, boolean alive) {
         if (!connected || myId == null) return;
 
         Packets.TorpedoState t = new Packets.TorpedoState();
         t.playerId = myId;
-        t.x = x;
-        t.y = y;
-        t.angle = angle;
-        t.alive = alive;
+        t.x        = x;
+        t.y        = y;
+        t.angle    = angle;
+        t.alive    = alive;
         client.sendUDP(t);
     }
 
@@ -122,18 +139,20 @@ public class NetworkClient {
         if (!connected || myId == null) return;
 
         Packets.TorpedoDetonate d = new Packets.TorpedoDetonate();
-        d.playerId = myId;
-        d.x = x;
-        d.y = y;
+        d.playerId    = myId;
+        d.x           = x;
+        d.y           = y;
         d.blastRadius = blastRadius;
-        d.damage = damage;
+        d.damage      = damage;
         client.sendTCP(d);
     }
 
-    // ── Draining pending events into the game ────────────────────────────────────
+    // ── Draining pending events ───────────────────────────────────────────────────
 
-    // Call once per frame. Converts pending SoundEvents into Sound objects and
-    // appends them to the provided list. Handles "radar" and "torpedo_explosion".
+    /**
+     * Call once per frame. Converts pending SoundEvents into Sound objects and
+     * appends them to the provided list.
+     */
     public void drainSounds(List<Sound> sounds) {
         synchronized (pendingSounds) {
             for (Packets.SoundEvent ev : pendingSounds) {
@@ -144,7 +163,7 @@ public class NetworkClient {
         }
     }
 
-    // Call once per frame. Returns pending radar pings from other players.
+    /** Call once per frame. Returns pending radar pings from other players. */
     public List<Packets.RadarPing> drainPings() {
         synchronized (pendingPings) {
             List<Packets.RadarPing> copy = new java.util.ArrayList<>(pendingPings);
@@ -153,31 +172,7 @@ public class NetworkClient {
         }
     }
 
-    // Converts a SoundEvent packet into the appropriate Sound subclass.
-    // Add new sound types here as the game grows.
-    private Sound buildSound(Packets.SoundEvent ev) {
-        switch (ev.type) {
-            case "radar":
-                return new RadarSound(ev.x, ev.y, ev.strength, ev.playerId);
-            case "torpedo_explosion":
-                // Same class used locally when our own torpedo detonates.
-                return new TorpedoSound(ev.x, ev.y, "remote_ping");
-            default:
-                return new Sound(ev.x, ev.y, ev.strength, ev.playerId) {};
-        }
-    }
-
-    // ── Remote submarine access ──────────────────────────────────────────────────
-
-    public Map<String, Submarine> getRemoteSubs() {
-        return remoteSubs;
-    }
-
-    public Map<String, Packets.TorpedoState> getRemoteTorpedoStates() {
-        return remoteTorpedoStates;
-    }
-
-    // Call once per frame. Returns pending detonation packets.
+    /** Call once per frame. Returns pending detonation packets. */
     public List<Packets.TorpedoDetonate> drainDetonations() {
         synchronized (pendingDetonations) {
             List<Packets.TorpedoDetonate> copy = new java.util.ArrayList<>(pendingDetonations);
@@ -186,7 +181,24 @@ public class NetworkClient {
         }
     }
 
-    // ── Listener (runs on Kryonet background thread) ─────────────────────────────
+    /** Converts a SoundEvent packet into the appropriate Sound subclass. */
+    private Sound buildSound(Packets.SoundEvent ev) {
+        switch (ev.type) {
+            case "radar":
+                return new RadarSound(ev.x, ev.y, ev.strength, ev.playerId);
+            case "torpedo_explosion":
+                return new TorpedoSound(ev.x, ev.y, "remote_ping");
+            default:
+                return new Sound(ev.x, ev.y, ev.strength, ev.playerId) {};
+        }
+    }
+
+    // ── Remote state access ───────────────────────────────────────────────────────
+
+    public Map<String, Submarine>             getRemoteSubs()          { return remoteSubs; }
+    public Map<String, Packets.TorpedoState>  getRemoteTorpedoStates() { return remoteTorpedoStates; }
+
+    // ── Listener (runs on Kryonet background thread) ──────────────────────────────
 
     private class ClientListener extends Listener {
 
@@ -199,10 +211,19 @@ public class NetworkClient {
         @Override
         public void received(Connection conn, Object object) {
 
+            if (object instanceof Packets.JoinRejected) {
+                Packets.JoinRejected rej = (Packets.JoinRejected) object;
+                rejectionReason = rej.reason;
+                connected = false;
+                System.err.println("Join rejected: " + rej.reason);
+                return;
+            }
+
             if (object instanceof Packets.JoinResponse) {
                 Packets.JoinResponse resp = (Packets.JoinResponse) object;
                 myId = resp.assignedId;
-                System.out.println("Joined as: " + myId + " spawn=(" + resp.spawnX + "," + resp.spawnY + ")");
+                System.out.println("Joined as: " + myId
+                        + " spawn=(" + resp.spawnX + "," + resp.spawnY + ")");
                 return;
             }
 
@@ -229,8 +250,6 @@ public class NetworkClient {
             }
 
             if (object instanceof Packets.SoundEvent) {
-                // All sound types (radar, torpedo_explosion, engine, …) go into
-                // pendingSounds. buildSound() dispatches to the right class.
                 pendingSounds.add((Packets.SoundEvent) object);
                 return;
             }
