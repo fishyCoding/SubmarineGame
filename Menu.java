@@ -291,15 +291,7 @@ public class Menu {
             int count = lobby != null ? lobby.playerCount : 1;
             if (clicked && hitBtn(mx, my, W / 2.0 + 90, 55, 110, 26)) {
                 waitRelease();
-                // Start the NetworkServer first so it's listening when clients connect
-                try {
-                    NetworkServer ns = new NetworkServer();
-                    ns.start();
-                    System.out.println("Game server started by host.");
-                    Thread.sleep(200);
-                } catch (Exception e) {
-                    System.err.println("Failed to start server: " + e.getMessage());
-                }
+                // Host will start the server in Game.setupNetwork()
                 lobbyClient.startGame();
                 // The GameStarting packet will come back and trigger the return above
             }

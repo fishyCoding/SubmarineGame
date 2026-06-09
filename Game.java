@@ -94,7 +94,8 @@ public class Game {
                 netServer = new NetworkServer();
                 netServer.start();
                 System.out.println("Hosting — server started.");
-                Thread.sleep(300);
+                // Wait longer to ensure clients can connect
+                Thread.sleep(1000);
                 netClient = new NetworkClient("localhost", "Host");
                 netClient.connect();
             } else if(mode.equals("--join") && args.length > 1) {
