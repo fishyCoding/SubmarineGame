@@ -39,6 +39,7 @@ public class Menu {
 
     // ── States ────────────────────────────────────────────────────────────────────
     private static final int STATE_NAME_ENTRY = 0;
+    private static final int STATE_SERVER_SELECT = 7;
     private static final int STATE_MAIN       = 1;
     private static final int STATE_CREATE     = 2;
     private static final int STATE_BROWSE     = 3;
@@ -107,6 +108,7 @@ public class Menu {
 
         switch (state) {
             case STATE_NAME_ENTRY: return handleNameEntry(mx, my, clicked);
+            case STATE_SERVER_SELECT: return handleServerSelect(mx, my, clicked);
             case STATE_MAIN:       return handleMain(mx, my, clicked);
             case STATE_CREATE:     return handleCreate(mx, my, clicked);
             case STATE_BROWSE:     return handleBrowse(mx, my, clicked);
@@ -124,6 +126,20 @@ public class Menu {
 
         if (clicked && hitBtn(mx, my, W / 2.0, 155, 150, 28)) {
             if (playerNameBuf.length() == 0) playerNameBuf.append("Player");
+            waitRelease();
+            state = STATE_SERVER_SELECT;
+        }
+        // Also accept Enter
+        return null;
+    }
+
+    // ── State: SERVER_SELECT ──────────────────────────────────────────────────────
+
+    private static String[] handleServerSelect(double mx, double my, boolean clicked) {
+        drainTyping(ipBuf, 64, false);
+
+        if (clicked && hitBtn(mx, my, W / 2.0, 120, 150, 28)) {
+            if (ipBuf.length() == 0) ipBuf.append(LOBBY_SERVER);
             waitRelease();
             state = STATE_MAIN;
         }
@@ -329,8 +345,7 @@ public class Menu {
         for (int y = 0; y < H; y += 3) StdDraw.line(0, y, W, y);
 
         switch (state) {
-            case STATE_NAME_ENTRY: renderNameEntry(); break;
-            case STATE_MAIN:       renderMain();      break;
+            case STATE_NAME_ENTRY: renderNameEntry(); break;            case STATE_SERVER_SELECT: renderServerSelect(); break;            case STATE_MAIN:       renderMain();      break;
             case STATE_CREATE:     renderCreate();    break;
             case STATE_BROWSE:     renderBrowse();    break;
             case STATE_LOBBY_WAIT: renderLobbyWait(); break;
@@ -353,6 +368,20 @@ public class Menu {
         small("v1.0 — up to 4 players per lobby", W / 2.0, 55, COL_MUTED);
     }
 
+    // ── Render: SERVER_SELECT ─────────────────────────────────────────────────────
+
+    private static void renderServerSelect() {
+        double mx = StdDraw.mouseX(), my = StdDraw.mouseY();
+
+        header("LOBBY SERVER", 350);
+        small("Enter lobby server hostname or IP", W / 2.0, 300, COL_DIM);
+        small("(leave blank for localhost)", W / 2.0, 270, COL_DIM);
+
+        inputBox(ipBuf.toString(), W / 2.0, 220, 300, false);
+
+        drawBtn("CONTINUE", W / 2.0, 120, 150, 28, mx, my);
+    }
+
     // ── Render: MAIN ──────────────────────────────────────────────────────────────
 
     private static void renderMain() {
@@ -365,7 +394,8 @@ public class Menu {
         drawBtn("HOST LOBBY",     W / 2.0, 210, 150, 28, mx, my);
         drawBtn("BROWSE LOBBIES", W / 2.0, 150, 150, 28, mx, my);
 
-        small("Lobby server: " + LOBBY_SERVER, W / 2.0, 50, COL_MUTED);
+        String serverDisplay = ipBuf.length() > 0 ? ipBuf.toString() : LOBBY_SERVER;
+        small("Server: " + serverDisplay, W / 2.0, 50, COL_MUTED);
     }
 
     // ── Render: CREATE ────────────────────────────────────────────────────────────
@@ -377,10 +407,6 @@ public class Menu {
         small("Choose a name for your lobby", W / 2.0, 355, COL_DIM);
 
         inputBox(lobbyNameBuf.toString(), W / 2.0, 290, 300, true);
-
-        // Lobby server IP
-        small("Lobby server", W / 2.0, 230, COL_DIM);
-        inputBox(ipBuf.toString(), W / 2.0, 200, 300, false);
 
         drawBtn("← BACK",         W / 2.0 - 90, 120, 100, 26, mx, my);
         drawBtn("CREATE & HOST →", W / 2.0 + 90, 120, 120, 26, mx, my);
