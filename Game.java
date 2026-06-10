@@ -5,7 +5,7 @@ import java.util.Map;
 public class Game {
 
     // Canvas
-    private static final int WIDTH = 12;
+    private static final int WIDTH = 1600;
     private static final int HEIGHT = 800;
     private static final double CX = WIDTH / 2.0;
     private static final double CY = HEIGHT / 2.0;
